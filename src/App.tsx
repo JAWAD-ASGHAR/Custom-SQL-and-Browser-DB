@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { MiniDB, ViewMode, TableSchema, MiniDBSchema } from './types';
 import { loadDB, saveDB, seedSampleData, loadSchema, saveSchema } from './utils/localStorage';
 import { Sidebar } from './components/Sidebar';

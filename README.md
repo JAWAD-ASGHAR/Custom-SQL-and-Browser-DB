@@ -2,6 +2,25 @@
 
 A React application that implements a file-based mini database system inside the browser using localStorage. This project demonstrates sets, relations, and custom query parsing.
 
+## Features
+
+- **File Management**: Create, rename, and delete database files (tables)
+- **Schema Definition**: Define table schemas with fields, primary keys, and foreign keys
+- **Record CRUD**: Create, read, update, and delete records through UI
+- **Query Engine**: Execute SQL-like queries including:
+  - **SELECT** with field projection, WHERE filtering, ORDERBY sorting, and LIMIT
+  - **INSERT** to add new records
+  - **UPDATE** to modify existing records
+  - **DELETE** to remove records
+  - **JOIN** to combine data from multiple tables
+  - **UNION**, **INTERSECT**, and **DIFF** for set operations
+  - **SHOW FILES** to list all tables
+- **Data Persistence**: All data stored in browser localStorage
+- **Schema Validation**: Inline validation for table creation with error messages
+- **Relationship Mapping**: Visual representation of table relationships
+- **Query History**: Track and reuse previous queries
+- **Real-time Updates**: Database mutations automatically persist to localStorage
+
 ## Tech Stack
 
 - React 18.2.0 with TypeScript
@@ -85,7 +104,7 @@ interface MiniDB {
 ### Main Content Area (Right Panel)
 
 **Tab Navigation**:
-- Two tabs: "Dataset View" and "Query Console"
+- Three tabs: "Dataset View", "Query Console", and "Relationship Map"
 - Active tab highlighted in blue with bottom border
 - Clicking a file in sidebar automatically switches to Dataset View
 
@@ -144,7 +163,12 @@ interface MiniDB {
   - Clickable items to re-insert query
   - Scrollable list (max-height: 32px)
 - Query Examples panel (blue background):
-  - Shows 6 example queries
+  - Shows example queries including:
+    - SELECT with projection, WHERE, ORDERBY, LIMIT
+    - INSERT, UPDATE, DELETE operations
+    - JOIN operations
+    - Set operations (UNION, INTERSECT, DIFF)
+    - SHOW FILES
   - Styled in monospace font
 
 *Right Panel - Results*:
@@ -158,15 +182,20 @@ interface MiniDB {
 
 #### 1. SELECT
 
-**Syntax**: `SELECT FROM <file> [WHERE <field> <operator> <value>] [SORTBY <field>]`
+**Syntax**: `SELECT [field1, field2, ...] FROM <file> [WHERE <field> <operator> <value>] [ORDERBY <field> [DESC|ASC]] [LIMIT <n>]`
 
-**Description**: Retrieves records from a file with optional filtering and sorting.
+**Description**: Retrieves records from a file with optional field projection, filtering, sorting, and limiting.
+
+**Field Projection**:
+- `SELECT * FROM <file>` or `SELECT FROM <file>` - Returns all fields
+- `SELECT name, age FROM <file>` - Returns only specified fields
+- Field names are case-sensitive
 
 **Examples**:
-- `SELECT FROM students`
-- `SELECT FROM students WHERE age > 20`
-- `SELECT FROM courses SORTBY name`
-- `SELECT FROM students WHERE age > 20 SORTBY name`
+- `SELECT FROM students` - Returns all fields from all students
+- `SELECT name, age FROM students` - Returns only name and age fields
+- `SELECT FROM students WHERE age > 20` - Filters students by age
+- `SELECT name, age FROM students WHERE age > 20 ORDERBY age DESC LIMIT 10` - Combined query
 
 **WHERE Clause**:
 - Optional filtering condition
@@ -178,16 +207,28 @@ interface MiniDB {
   - Strings can be quoted or unquoted (quotes are stripped)
   - Comparison operators (`>`, `<`, `>=`, `<=`) convert both sides to numbers
 
-**SORTBY Clause**:
-- Optional sorting
-- Format: `SORTBY <field>`
-- Sorts in ascending order (string comparison for strings, numeric for numbers)
-- Can be combined with WHERE clause
+**ORDERBY Clause**:
+- Optional sorting (replaces legacy SORTBY, which is still supported)
+- Format: `ORDERBY <field> [DESC|ASC]`
+- Defaults to ASC (ascending) if not specified
+- DESC sorts in descending order
+- ASC sorts in ascending order
+- Can be combined with WHERE and LIMIT clauses
+- Example: `ORDERBY age DESC` or `ORDERBY name ASC`
+
+**LIMIT Clause**:
+- Optional result limiting
+- Format: `LIMIT <number>`
+- Restricts the number of results returned
+- Must be a non-negative integer
+- Can be combined with WHERE and ORDERBY clauses
+- Example: `LIMIT 10` returns only the first 10 results
 
 **Error Cases**:
 - Missing file name: "Invalid query: Missing file name after FROM"
 - File doesn't exist: "File "[fileName]" does not exist"
 - Invalid WHERE syntax: "Invalid WHERE clause syntax"
+- Invalid LIMIT value: "Invalid LIMIT value"
 
 #### 2. UNION
 
@@ -246,7 +287,96 @@ interface MiniDB {
 - Missing file names: "Invalid query: DIFF requires two file names"
 - File doesn't exist: "One or both files do not exist: [fileA], [fileB]"
 
-#### 5. SHOW FILES
+#### 5. JOIN
+
+**Syntax**: `JOIN <tableA> <tableB> ON <tableA.fieldA> = <tableB.fieldB>`
+
+**Description**: Performs an inner join between two tables based on matching field values.
+
+**Behavior**:
+- Performs Cartesian product of both tables
+- Filters pairs where `fieldA == fieldB`
+- Merges the two objects into one combined record
+- Field names are prefixed with table name to avoid conflicts (e.g., `students.id`, `enrollments.studentId`)
+- Returns only records where the join condition is satisfied (inner join)
+
+**Examples**:
+- `JOIN students enrollments ON students.id = enrollments.studentId`
+- `JOIN courses teachers ON courses.instructor = teachers.name`
+
+**Error Cases**:
+- Missing ON clause: "Invalid query: JOIN requires ON clause"
+- Missing table names: "Invalid query: JOIN requires two table names"
+- Table doesn't exist: "One or both tables do not exist: [tableA], [tableB]"
+- Invalid ON syntax: "Invalid ON clause syntax. Expected: tableA.fieldA = tableB.fieldB"
+- Table name mismatch: "Table names in ON clause must match table names in JOIN"
+
+#### 6. INSERT
+
+**Syntax**: `INSERT INTO <table> { "field1": value1, "field2": value2, ... }`
+
+**Description**: Inserts a new record into the specified table.
+
+**Behavior**:
+- Parses JSON object from the query
+- Adds the record to the table
+- Automatically updates the database and persists to localStorage
+- Returns the inserted record and affected row count (1)
+
+**Examples**:
+- `INSERT INTO students { "id": 4, "name": "Zara", "age": 21 }`
+- `INSERT INTO courses { "id": 8, "name": "Machine Learning", "code": "CS401", "credits": 3 }`
+
+**Error Cases**:
+- Missing table name: "Invalid query: Missing table name after INTO"
+- Missing JSON object: "Invalid query: Missing JSON object"
+- Invalid JSON: "Invalid JSON: [error message]"
+
+#### 7. UPDATE
+
+**Syntax**: `UPDATE <table> SET <field> = <value> [WHERE <field> <operator> <value>]`
+
+**Description**: Updates records in the specified table.
+
+**Behavior**:
+- Updates all records if no WHERE clause is provided
+- Updates only matching records if WHERE clause is present
+- Automatically updates the database and persists to localStorage
+- Returns updated records and affected row count
+
+**Examples**:
+- `UPDATE students SET age = 25 WHERE id = 2` - Updates age for student with id=2
+- `UPDATE courses SET credits = 4` - Updates credits for all courses
+
+**Error Cases**:
+- Missing table name: "Invalid query: Missing table name after UPDATE"
+- Table doesn't exist: "Table "[tableName]" does not exist"
+- Missing SET clause: "Invalid query: Missing SET clause"
+- Invalid SET syntax: "Invalid SET clause syntax. Expected: field = value"
+- Invalid WHERE syntax: "Invalid WHERE clause syntax"
+
+#### 8. DELETE
+
+**Syntax**: `DELETE FROM <table> [WHERE <field> <operator> <value>]`
+
+**Description**: Deletes records from the specified table.
+
+**Behavior**:
+- Deletes all records if no WHERE clause is provided
+- Deletes only matching records if WHERE clause is present
+- Automatically updates the database and persists to localStorage
+- Returns affected row count
+
+**Examples**:
+- `DELETE FROM students WHERE gpa < 2.0` - Deletes students with low GPA
+- `DELETE FROM courses` - Deletes all courses (use with caution!)
+
+**Error Cases**:
+- Missing table name: "Invalid query: Missing table name after FROM"
+- Table doesn't exist: "Table "[tableName]" does not exist"
+- Invalid WHERE syntax: "Invalid WHERE clause syntax"
+
+#### 9. SHOW FILES
 
 **Syntax**: `SHOW FILES`
 
@@ -263,9 +393,11 @@ interface MiniDB {
 
 - **Case Insensitivity**: All query keywords are case-insensitive (SELECT, FROM, WHERE, etc.)
 - **File Names**: File names in queries are converted to lowercase
+- **Field Names**: Field names in SELECT projection are case-sensitive
 - **Whitespace**: Extra whitespace is trimmed
 - **Invalid Queries**: Returns `{ error: "Invalid query syntax" }` for unrecognized queries
 - **Query Execution Errors**: Catches exceptions and returns error message
+- **Database Mutations**: INSERT, UPDATE, and DELETE operations automatically update the database and persist changes to localStorage
 
 ### Record Equality
 
@@ -305,8 +437,15 @@ The ResultViewer component displays query results in different formats:
 **SELECT Results** (type: 'table'):
 - Displays results in a table
 - Shows record count: "Found N record(s)"
-- Table with all fields as columns
+- Table with all fields as columns (or only selected fields if projection was used)
 - Each row represents one record
+
+**Mutation Results** (INSERT, UPDATE, DELETE):
+- Shows success message with green background
+- Displays affected row count: "N row(s) affected"
+- For INSERT: Shows the inserted record in a table
+- For UPDATE: Shows all updated records in a table
+- For DELETE: Shows empty result with success message
 
 ## File Management
 
@@ -316,19 +455,50 @@ The ResultViewer component displays query results in different formats:
 
 **Modal Dialog**:
 - Title: "Create New File"
-- Input field for file name
-- Placeholder: "Enter file name (e.g., students)"
+- Input field for file name (required)
+- Schema definition section (can be shown/hidden)
 - Cancel button (gray)
 - Create button (blue)
 - Keyboard shortcuts:
   - Enter: Create file
   - Escape: Cancel
 
-**Behavior**:
+**Schema Definition**:
+- **Fields Section**:
+  - Add multiple fields dynamically with "+ Add Field" button
+  - Each field has:
+    - Field name input (required, case-sensitive)
+    - Field type dropdown (String, Number, Boolean)
+    - Delete button (✕) - disabled when only one field remains
+  - Inline validation:
+    - Red border and error message for empty field names
+    - Red border and error message for duplicate field names
+    - Error messages clear when issues are fixed
+- **Primary Key Section**:
+  - Dropdown selector populated with defined fields
+  - Optional (can select "None")
+  - Validates that selected field exists
+- **Foreign Keys Section**:
+  - Add multiple foreign keys dynamically with "+ Add Foreign Key" button
+  - Each foreign key requires:
+    - Field selection (from current table's fields)
+    - Table selection (from existing tables)
+    - Field selection (from selected table's fields)
+  - Delete button (✕) for each foreign key
+  - Field dropdown updates based on selected table
+  - Inline validation for foreign key errors
+
+**Validation**:
+- Cannot create table with no fields (shows error message)
+- Cannot create table with duplicate field names (shows inline errors)
+- All validation errors are displayed before creation
 - File name is trimmed and converted to lowercase
-- Empty name shows alert: "Please enter a file name"
-- Duplicate name shows alert: "A file with this name already exists"
+- Empty name shows inline error: "Please enter a file name"
+- Duplicate name shows inline error: "A file with this name already exists"
+
+**Behavior**:
 - New file is created with empty array: `[]`
+- Schema is saved separately if provided
 - Newly created file is automatically selected
 - Automatically saves to localStorage
 
@@ -465,6 +635,9 @@ The database is automatically saved to localStorage when:
 - A record is added
 - A record is edited
 - A record is deleted
+- An INSERT query is executed
+- An UPDATE query is executed
+- A DELETE query is executed
 
 ### Sample Data Structure
 
@@ -506,6 +679,25 @@ The database is automatically saved to localStorage when:
 - **Enter** (in create file modal): Create file
 - **Escape** (in create file modal): Cancel file creation
 
+## Schema Management
+
+The application supports schema definition for tables:
+
+**Schema Structure**:
+- Fields: Array of field definitions with name and type (string, number, boolean)
+- Primary Key: Optional single field designation
+- Foreign Keys: Optional array of foreign key relationships
+
+**Schema Storage**:
+- Stored separately from data in localStorage key: `minidb_schema`
+- Automatically saved when creating files with schema
+- Used for validation and relationship mapping
+
+**Schema Functions**:
+- `loadSchema()`: Loads schema from localStorage
+- `saveSchema(schema)`: Saves schema to localStorage
+- Schema is automatically created for sample data on first load
+
 ## Error Handling
 
 **Query Errors**:
@@ -513,11 +705,21 @@ The database is automatically saved to localStorage when:
 - Missing file: "File "[fileName]" does not exist"
 - Missing WHERE condition: "Invalid WHERE clause syntax"
 - Missing file names in set operations: "Invalid query: [OPERATION] requires two file names"
+- Invalid LIMIT value: "Invalid LIMIT value"
+- Invalid JSON in INSERT: "Invalid JSON: [error message]"
+- Missing SET clause in UPDATE: "Invalid query: Missing SET clause"
+- Invalid SET syntax: "Invalid SET clause syntax. Expected: field = value"
+- Missing ON clause in JOIN: "Invalid query: JOIN requires ON clause"
+- Invalid ON syntax: "Invalid ON clause syntax. Expected: tableA.fieldA = tableB.fieldB"
 - Execution errors: "Query execution error: [error message]"
 
 **File Management Errors**:
-- Empty file name: Alert "Please enter a file name"
-- Duplicate file name: Alert "A file with this name already exists"
+- Empty file name: Inline error "Please enter a file name"
+- Duplicate file name: Inline error "A file with this name already exists"
+- No fields: Inline error "Please add at least one field"
+- Duplicate field names: Inline error "Field names must be unique" with red borders on duplicate fields
+- Invalid primary key: Inline error "Primary key must be one of the defined fields"
+- Invalid foreign key: Inline error with specific message about the foreign key issue
 
 **Record Management Errors**:
 - Adding record to empty file: Alert "Cannot add record: No fields detected. Add at least one record manually or use a file with existing structure."
@@ -545,11 +747,13 @@ src/
     DatasetView.tsx      # CRUD operations for records
     QueryConsole.tsx     # Query input and execution interface
     ResultViewer.tsx     # Query results display component
-    FileManager.tsx      # Create file modal component
+    FileManager.tsx      # Create file modal with schema definition
+    RelationshipMap.tsx  # Visual relationship mapping component
   utils/
     localStorage.ts      # Database load/save/seed functions
-    queryEngine.ts       # Query parser and executor
-  types.ts              # TypeScript interfaces (MiniDB, QueryResult, ViewMode)
+    queryEngine.ts       # Query parser and executor (SELECT, INSERT, UPDATE, DELETE, JOIN, etc.)
+    schemaValidation.ts # Schema validation utilities
+  types.ts              # TypeScript interfaces (MiniDB, QueryResult, ViewMode, TableSchema, etc.)
   App.tsx               # Main application component with state management
   main.tsx              # React entry point
   index.css             # TailwindCSS imports
