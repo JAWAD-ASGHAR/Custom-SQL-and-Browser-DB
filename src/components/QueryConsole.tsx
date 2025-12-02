@@ -5,9 +5,10 @@ import { ResultViewer } from './ResultViewer';
 
 interface QueryConsoleProps {
   db: MiniDB;
+  onUpdate?: (updatedDb: MiniDB) => void;
 }
 
-export const QueryConsole: React.FC<QueryConsoleProps> = ({ db }) => {
+export const QueryConsole: React.FC<QueryConsoleProps> = ({ db, onUpdate }) => {
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<QueryResult | null>(null);
   const [queryHistory, setQueryHistory] = useState<string[]>([]);
@@ -20,6 +21,11 @@ export const QueryConsole: React.FC<QueryConsoleProps> = ({ db }) => {
 
     const queryResult = executeQuery(query, db);
     setResult(queryResult);
+
+    // Handle database mutations (INSERT, UPDATE, DELETE)
+    if (queryResult.updatedDb && onUpdate) {
+      onUpdate(queryResult.updatedDb);
+    }
 
     // Add to history if not already there
     if (query.trim() && !queryHistory.includes(query.trim())) {
@@ -56,7 +62,7 @@ export const QueryConsole: React.FC<QueryConsoleProps> = ({ db }) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="SELECT FROM students WHERE age > 20&#10;UNION students teachers&#10;INTERSECT students alumni&#10;DIFF A B&#10;SHOW FILES"
+              placeholder="SELECT name, age FROM students&#10;SELECT FROM students WHERE age > 20 ORDERBY age DESC LIMIT 10&#10;INSERT INTO students { &quot;id&quot;: 4, &quot;name&quot;: &quot;Zara&quot;, &quot;age&quot;: 21 }&#10;UPDATE students SET age = 25 WHERE id = 2&#10;DELETE FROM students WHERE gpa < 2.0&#10;JOIN students enrollments ON students.id = enrollments.studentId&#10;SHOW FILES"
               className="w-full h-40 px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
             />
           </div>
@@ -98,11 +104,15 @@ export const QueryConsole: React.FC<QueryConsoleProps> = ({ db }) => {
           <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-4">
             <h3 className="text-sm font-semibold text-blue-900 mb-2">Query Examples:</h3>
             <ul className="text-xs text-blue-800 space-y-1 font-mono">
-              <li>• SELECT FROM students WHERE age &gt; 20</li>
-              <li>• SELECT FROM courses SORTBY name</li>
+              <li>• SELECT name, age FROM students</li>
+              <li>• SELECT FROM students WHERE age &gt; 20 ORDERBY age DESC LIMIT 10</li>
+              <li>• INSERT INTO students {`{ "id": 4, "name": "Zara", "age": 21 }`}</li>
+              <li>• UPDATE students SET age = 25 WHERE id = 2</li>
+              <li>• DELETE FROM students WHERE gpa &lt; 2.0</li>
               <li>• UNION students teachers</li>
               <li>• INTERSECT students alumni</li>
               <li>• DIFF students teachers</li>
+              <li>• JOIN students enrollments ON students.id = enrollments.studentId</li>
               <li>• SHOW FILES</li>
             </ul>
           </div>

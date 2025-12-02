@@ -27,6 +27,55 @@ export const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     );
   }
 
+  // Show success message for mutations with affected rows
+  if (result.affectedRows !== undefined) {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-md p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-green-600 text-xl">✓</span>
+          <h3 className="text-green-800 font-semibold">Query executed successfully</h3>
+        </div>
+        <p className="text-green-700 mt-2">
+          {result.affectedRows} row{result.affectedRows !== 1 ? 's' : ''} affected
+        </p>
+        {result.data && result.data.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm text-green-700 font-medium mb-2">Returned data:</p>
+            <div className="bg-white border border-green-200 rounded-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {Object.keys(result.data[0]).map((field) => (
+                        <th
+                          key={field}
+                          className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          {field}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {result.data.map((record: Record<string, any>, index: number) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        {Object.keys(record).map((field) => (
+                          <td key={field} className="px-4 py-2 text-sm text-gray-900">
+                            {String(record[field] ?? '')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (!result.data || result.data.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">

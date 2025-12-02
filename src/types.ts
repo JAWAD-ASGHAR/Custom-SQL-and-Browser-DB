@@ -6,6 +6,8 @@ export interface QueryResult {
   data?: any[];
   error?: string;
   type?: 'table' | 'set' | 'files';
+  updatedDb?: MiniDB;
+  affectedRows?: number;
 }
 
 export type ViewMode = 'dataset' | 'query' | 'relationships';

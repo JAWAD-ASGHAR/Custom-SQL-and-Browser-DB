@@ -13,6 +13,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
   const [primaryKey, setPrimaryKey] = useState<string>('');
   const [foreignKeys, setForeignKeys] = useState<ForeignKey[]>([]);
   const [showSchema, setShowSchema] = useState(true);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     setNewFileName('');
@@ -20,6 +21,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
     setPrimaryKey('');
     setForeignKeys([]);
     setShowSchema(true);
+    setErrors({});
   }, []);
 
   const handleAddField = () => {
@@ -45,6 +47,48 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
     if (primaryKey === fields[index].name && field.name) {
       setPrimaryKey('');
     }
+    // Clear errors when user makes changes
+    if (errors[`field-${index}`]) {
+      const newErrors = { ...errors };
+      delete newErrors[`field-${index}`];
+      setErrors(newErrors);
+    }
+    if (errors.duplicateFields) {
+      const newErrors = { ...errors };
+      delete newErrors.duplicateFields;
+      setErrors(newErrors);
+    }
+  };
+
+  const validateFields = (): boolean => {
+    const newErrors: { [key: string]: string } = {};
+    
+    // Check for empty field names
+    fields.forEach((field, index) => {
+      if (!field.name.trim()) {
+        newErrors[`field-${index}`] = 'Field name is required';
+      }
+    });
+
+    // Check for duplicate field names (case-insensitive)
+    const fieldNames = fields
+      .map(f => f.name.trim().toLowerCase())
+      .filter(name => name !== '');
+    const duplicates = fieldNames.filter((name, index) => fieldNames.indexOf(name) !== index);
+    
+    if (duplicates.length > 0) {
+      newErrors.duplicateFields = 'Field names must be unique';
+      // Mark duplicate fields
+      fields.forEach((field, index) => {
+        const lowerName = field.name.trim().toLowerCase();
+        if (lowerName && duplicates.includes(lowerName)) {
+          newErrors[`field-${index}`] = 'Duplicate field name';
+        }
+      });
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleAddForeignKey = () => {
@@ -63,56 +107,64 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
 
   const handleCreateFile = () => {
     const trimmedName = newFileName.trim().toLowerCase();
-    if (!trimmedName) {
-      alert('Please enter a file name');
-      return;
-    }
+    const newErrors: { [key: string]: string } = {};
 
-    if (db[trimmedName]) {
-      alert('A file with this name already exists');
-      return;
+    if (!trimmedName) {
+      newErrors.fileName = 'Please enter a file name';
+    } else if (db[trimmedName]) {
+      newErrors.fileName = 'A file with this name already exists';
     }
 
     // Validate fields
-    const validFields = fields.filter(f => f.name.trim() !== '');
-    if (validFields.length === 0) {
-      alert('Please add at least one field');
+    if (!validateFields()) {
+      // Validation errors are already set by validateFields
+      setErrors({ ...errors, ...newErrors });
       return;
     }
 
-    // Check for duplicate field names
-    const fieldNames = validFields.map(f => f.name.trim().toLowerCase());
-    const uniqueNames = new Set(fieldNames);
-    if (fieldNames.length !== uniqueNames.size) {
-      alert('Field names must be unique');
+    const validFields = fields.filter(f => f.name.trim() !== '');
+    if (validFields.length === 0) {
+      newErrors.fields = 'Please add at least one field';
+      setErrors(newErrors);
+      return;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
     // Validate primary key
     if (primaryKey && !validFields.some(f => f.name === primaryKey)) {
-      alert('Primary key must be one of the defined fields');
+      newErrors.primaryKey = 'Primary key must be one of the defined fields';
+      setErrors(newErrors);
       return;
     }
 
     // Validate foreign keys
     const schema = loadSchema();
-    for (const fk of foreignKeys) {
+    for (let i = 0; i < foreignKeys.length; i++) {
+      const fk = foreignKeys[i];
       if (!fk.field || !fk.references.table || !fk.references.field) {
-        alert('All foreign key fields must be filled');
+        newErrors[`fk-${i}`] = 'All foreign key fields must be filled';
+        setErrors(newErrors);
         return;
       }
       if (!validFields.some(f => f.name === fk.field)) {
-        alert(`Foreign key field "${fk.field}" must be one of the defined fields`);
+        newErrors[`fk-${i}`] = `Foreign key field "${fk.field}" must be one of the defined fields`;
+        setErrors(newErrors);
         return;
       }
       const refTableName = fk.references.table.toLowerCase();
       if (!schema[refTableName]) {
-        alert(`Referenced table "${fk.references.table}" does not exist`);
+        newErrors[`fk-${i}`] = `Referenced table "${fk.references.table}" does not exist`;
+        setErrors(newErrors);
         return;
       }
       const refTableSchema = schema[refTableName];
       if (!refTableSchema.fields.some(f => f.name === fk.references.field)) {
-        alert(`Referenced field "${fk.references.field}" does not exist in table "${fk.references.table}"`);
+        newErrors[`fk-${i}`] = `Referenced field "${fk.references.field}" does not exist in table "${fk.references.table}"`;
+        setErrors(newErrors);
         return;
       }
     }
@@ -129,6 +181,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
       })) : undefined,
     };
 
+    // Clear errors and create file
+    setErrors({});
     onCreateFile(trimmedName, tableSchema);
   };
 
@@ -148,11 +202,25 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
           <input
             type="text"
             value={newFileName}
-            onChange={(e) => setNewFileName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            onChange={(e) => {
+              setNewFileName(e.target.value);
+              if (errors.fileName) {
+                const newErrors = { ...errors };
+                delete newErrors.fileName;
+                setErrors(newErrors);
+              }
+            }}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+              errors.fileName 
+                ? 'border-red-300 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
             placeholder="Enter table name (e.g., students)"
             autoFocus
           />
+          {errors.fileName && (
+            <p className="mt-1 text-sm text-red-600">{errors.fileName}</p>
+          )}
         </div>
 
         {/* Schema Section */}
@@ -184,33 +252,52 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
                     + Add Field
                   </button>
                 </div>
+                {errors.fields && (
+                  <p className="mb-2 text-sm text-red-600">{errors.fields}</p>
+                )}
+                {errors.duplicateFields && (
+                  <p className="mb-2 text-sm text-red-600">{errors.duplicateFields}</p>
+                )}
                 <div className="space-y-2">
                   {fields.map((field, index) => (
-                    <div key={index} className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        value={field.name}
-                        onChange={(e) => handleFieldChange(index, { name: e.target.value })}
-                        placeholder="Field name"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <select
-                        value={field.type}
-                        onChange={(e) => handleFieldChange(index, { type: e.target.value as 'string' | 'number' | 'boolean' })}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="string">String</option>
-                        <option value="number">Number</option>
-                        <option value="boolean">Boolean</option>
-                      </select>
-                      {fields.length > 1 && (
+                    <div key={index}>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="text"
+                          value={field.name}
+                          onChange={(e) => handleFieldChange(index, { name: e.target.value })}
+                          placeholder="Field name"
+                          className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            errors[`field-${index}`]
+                              ? 'border-red-300 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                        />
+                        <select
+                          value={field.type}
+                          onChange={(e) => handleFieldChange(index, { type: e.target.value as 'string' | 'number' | 'boolean' })}
+                          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="string">String</option>
+                          <option value="number">Number</option>
+                          <option value="boolean">Boolean</option>
+                        </select>
                         <button
                           type="button"
                           onClick={() => handleRemoveField(index)}
-                          className="text-red-600 hover:text-red-800 px-2"
+                          disabled={fields.length === 1}
+                          className={`px-3 py-2 rounded transition-colors ${
+                            fields.length === 1
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-red-600 hover:text-red-800 hover:bg-red-50'
+                          }`}
+                          title={fields.length === 1 ? 'At least one field is required' : 'Delete field'}
                         >
                           ✕
                         </button>
+                      </div>
+                      {errors[`field-${index}`] && (
+                        <p className="mt-1 text-xs text-red-600 ml-1">{errors[`field-${index}`]}</p>
                       )}
                     </div>
                   ))}
@@ -224,8 +311,19 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
                 </label>
                 <select
                   value={primaryKey}
-                  onChange={(e) => setPrimaryKey(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    setPrimaryKey(e.target.value);
+                    if (errors.primaryKey) {
+                      const newErrors = { ...errors };
+                      delete newErrors.primaryKey;
+                      setErrors(newErrors);
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                    errors.primaryKey
+                      ? 'border-red-300 focus:ring-red-500'
+                      : 'border-gray-300 focus:ring-blue-500'
+                  }`}
                 >
                   <option value="">None</option>
                   {fields
@@ -236,6 +334,9 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
                       </option>
                     ))}
                 </select>
+                {errors.primaryKey && (
+                  <p className="mt-1 text-sm text-red-600">{errors.primaryKey}</p>
+                )}
               </div>
 
               {/* Foreign Keys */}
@@ -252,59 +353,105 @@ export const FileManager: React.FC<FileManagerProps> = ({ db, onCreateFile }) =>
                 </div>
                 <div className="space-y-2">
                   {foreignKeys.map((fk, index) => (
-                    <div key={index} className="flex gap-2 items-center">
-                      <select
-                        value={fk.field}
-                        onChange={(e) => handleForeignKeyChange(index, { field: e.target.value })}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select field</option>
-                        {fields
-                          .filter(f => f.name.trim() !== '')
-                          .map((field) => (
+                    <div key={index}>
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={fk.field}
+                          onChange={(e) => {
+                            handleForeignKeyChange(index, { field: e.target.value });
+                            if (errors[`fk-${index}`]) {
+                              const newErrors = { ...errors };
+                              delete newErrors[`fk-${index}`];
+                              setErrors(newErrors);
+                            }
+                          }}
+                          className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            errors[`fk-${index}`]
+                              ? 'border-red-300 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                        >
+                          <option value="">Select field</option>
+                          {fields
+                            .filter(f => f.name.trim() !== '')
+                            .map((field) => (
+                              <option key={field.name} value={field.name}>
+                                {field.name}
+                              </option>
+                            ))}
+                        </select>
+                        <span className="text-gray-500 whitespace-nowrap">references</span>
+                        <select
+                          value={fk.references.table}
+                          onChange={(e) => {
+                            handleForeignKeyChange(index, {
+                              references: { ...fk.references, table: e.target.value, field: '' } // Reset field when table changes
+                            });
+                            if (errors[`fk-${index}`]) {
+                              const newErrors = { ...errors };
+                              delete newErrors[`fk-${index}`];
+                              setErrors(newErrors);
+                            }
+                          }}
+                          className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            errors[`fk-${index}`]
+                              ? 'border-red-300 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                        >
+                          <option value="">Select table</option>
+                          {availableTables.map((table) => (
+                            <option key={table} value={table}>
+                              {table}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-gray-500">.</span>
+                        <select
+                          value={fk.references.field}
+                          onChange={(e) => {
+                            handleForeignKeyChange(index, {
+                              references: { ...fk.references, field: e.target.value }
+                            });
+                            if (errors[`fk-${index}`]) {
+                              const newErrors = { ...errors };
+                              delete newErrors[`fk-${index}`];
+                              setErrors(newErrors);
+                            }
+                          }}
+                          className={`flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            errors[`fk-${index}`]
+                              ? 'border-red-300 focus:ring-red-500'
+                              : 'border-gray-300 focus:ring-blue-500'
+                          }`}
+                          disabled={!fk.references.table}
+                        >
+                          <option value="">Select field</option>
+                          {fk.references.table && schema[fk.references.table.toLowerCase()]?.fields.map((field) => (
                             <option key={field.name} value={field.name}>
                               {field.name}
                             </option>
                           ))}
-                      </select>
-                      <span className="text-gray-500">references</span>
-                      <select
-                        value={fk.references.table}
-                        onChange={(e) => handleForeignKeyChange(index, {
-                          references: { ...fk.references, table: e.target.value, field: '' } // Reset field when table changes
-                        })}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Select table</option>
-                        {availableTables.map((table) => (
-                          <option key={table} value={table}>
-                            {table}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-gray-500">.</span>
-                      <select
-                        value={fk.references.field}
-                        onChange={(e) => handleForeignKeyChange(index, {
-                          references: { ...fk.references, field: e.target.value }
-                        })}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={!fk.references.table}
-                      >
-                        <option value="">Select field</option>
-                        {fk.references.table && schema[fk.references.table.toLowerCase()]?.fields.map((field) => (
-                          <option key={field.name} value={field.name}>
-                            {field.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveForeignKey(index)}
-                        className="text-red-600 hover:text-red-800 px-2"
-                      >
-                        ✕
-                      </button>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleRemoveForeignKey(index);
+                            if (errors[`fk-${index}`]) {
+                              const newErrors = { ...errors };
+                              delete newErrors[`fk-${index}`];
+                              setErrors(newErrors);
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-2 rounded transition-colors"
+                          title="Delete foreign key"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      {errors[`fk-${index}`] && (
+                        <p className="mt-1 text-xs text-red-600 ml-1">{errors[`fk-${index}`]}</p>
+                      )}
                     </div>
                   ))}
                 </div>

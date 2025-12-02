@@ -165,7 +165,7 @@ function App() {
         {viewMode === 'dataset' ? (
           <DatasetView db={db} fileName={selectedFile} onUpdate={handleUpdateDb} />
         ) : viewMode === 'query' ? (
-          <QueryConsole db={db} />
+          <QueryConsole db={db} onUpdate={handleUpdateDb} />
         ) : (
           <RelationshipMap db={db} />
         )}
