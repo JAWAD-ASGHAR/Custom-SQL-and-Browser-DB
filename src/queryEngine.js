@@ -330,6 +330,76 @@ export function executeQuery(query, db) {
       return { data: diff, type: 'set' };
     }
     
+    // JOIN <table1> <table2> ON <table1>.<field> = <table2>.<field>
+    // Simple INNER JOIN implementation
+    if (parts[0] === 'JOIN') {
+      if (parts.length < 4) {
+        return { error: 'JOIN requires: JOIN table1 table2 ON table1.field = table2.field' };
+      }
+      
+      const table1Name = parts[1].toLowerCase();
+      const table2Name = parts[2].toLowerCase();
+      
+      if (!db[table1Name] || !db[table2Name]) {
+        return { error: `One or both tables do not exist: ${table1Name}, ${table2Name}` };
+      }
+      
+      // Find ON clause
+      const onIndex = upper.indexOf('ON');
+      if (onIndex === -1) {
+        return { error: 'JOIN requires ON clause: JOIN table1 table2 ON table1.field = table2.field' };
+      }
+      
+      const onClause = trimmed.substring(onIndex + 2).trim();
+      // Parse: table1.field = table2.field
+      const onMatch = onClause.match(/(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/);
+      
+      if (!onMatch) {
+        return { error: 'Invalid ON clause. Use: ON table1.field = table2.field' };
+      }
+      
+      const [, table1Ref, field1, table2Ref, field2] = onMatch;
+      
+      // Verify table references match
+      if (table1Ref.toLowerCase() !== table1Name && table1Ref.toLowerCase() !== table2Name) {
+        return { error: `Table reference "${table1Ref}" does not match table names` };
+      }
+      if (table2Ref.toLowerCase() !== table1Name && table2Ref.toLowerCase() !== table2Name) {
+        return { error: `Table reference "${table2Ref}" does not match table names` };
+      }
+      
+      // Determine which field belongs to which table
+      let table1Field, table2Field;
+      if (table1Ref.toLowerCase() === table1Name) {
+        table1Field = field1;
+        table2Field = field2;
+      } else {
+        table1Field = field2;
+        table2Field = field1;
+      }
+      
+      // Perform INNER JOIN
+      const joined = [];
+      for (const record1 of db[table1Name]) {
+        for (const record2 of db[table2Name]) {
+          if (record1[table1Field] === record2[table2Field]) {
+            // Merge records, prefixing fields with table names to avoid conflicts
+            const merged = {
+              ...Object.fromEntries(
+                Object.entries(record1).map(([k, v]) => [`${table1Name}_${k}`, v])
+              ),
+              ...Object.fromEntries(
+                Object.entries(record2).map(([k, v]) => [`${table2Name}_${k}`, v])
+              )
+            };
+            joined.push(merged);
+          }
+        }
+      }
+      
+      return { data: joined, type: 'join' };
+    }
+    
     // SHOW TABLES
     if (upper === 'SHOW TABLES') {
       return {

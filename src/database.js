@@ -46,5 +46,15 @@ export function initSampleData() {
     { id: 3, name: 'Algorithms', code: 'CS301', credits: 4 },
   ];
 
+  // Enrollments table - demonstrates relations using foreign keys
+  // student_id references students.id, course_id references courses.id
+  db.enrollments = [
+    { id: 1, student_id: 1, course_id: 1 },  // Ali enrolled in Discrete Structures
+    { id: 2, student_id: 2, course_id: 1 },  // Jawad enrolled in Discrete Structures
+    { id: 3, student_id: 1, course_id: 2 },  // Ali enrolled in Data Structures
+    { id: 4, student_id: 3, course_id: 2 },  // Sarah enrolled in Data Structures
+    { id: 5, student_id: 2, course_id: 3 },  // Jawad enrolled in Algorithms
+  ];
+
   saveDB(db);
 }
