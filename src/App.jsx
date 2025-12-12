@@ -20,6 +20,8 @@ function App() {
   const [relationFromColumn, setRelationFromColumn] = useState('');
   const [relationToTable, setRelationToTable] = useState('');
   const [showRelationsView, setShowRelationsView] = useState(false);
+  const [editingCell, setEditingCell] = useState(null); // { rowId, column }
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     initSampleData();
@@ -194,6 +196,45 @@ function App() {
       updatedDb[tableName] = updatedDb[tableName].filter(row => row.id !== rowId);
       handleUpdateDb(updatedDb);
     }
+  };
+
+  const handleCellDoubleClick = (rowId, column) => {
+    if (column === 'id') return; // Don't allow editing ID column
+    const row = currentTable.find(r => r.id === rowId);
+    if (row) {
+      setEditingCell({ rowId, column });
+      setEditValue(String(row[column] || ''));
+    }
+  };
+
+  const handleCellSave = (tableName, rowId, column) => {
+    const updatedDb = { ...db };
+    const rowIndex = updatedDb[tableName].findIndex(r => r.id === rowId);
+    
+    if (rowIndex !== -1) {
+      // Try to parse as number if it looks like a number
+      let value = editValue.trim();
+      const numValue = value !== '' && !isNaN(value) && !isNaN(parseFloat(value)) 
+        ? Number(value) 
+        : value;
+      
+      // If it's a foreign key column, ensure it's a number
+      if (isForeignKey(column) && value !== '') {
+        updatedDb[tableName][rowIndex][column] = Number(value) || '';
+      } else {
+        updatedDb[tableName][rowIndex][column] = numValue;
+      }
+      
+      handleUpdateDb(updatedDb);
+    }
+    
+    setEditingCell(null);
+    setEditValue('');
+  };
+
+  const handleCellCancel = () => {
+    setEditingCell(null);
+    setEditValue('');
   };
 
   // Helper: Check if a column is a foreign key (ends with _id and references another table)
@@ -401,11 +442,72 @@ function App() {
                     <tbody>
                       {currentTable.map((row, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          {tableColumns.map(col => (
-                            <td key={col} className="border border-gray-300 px-4 py-2">
-                              {String(row[col] || '')}
-                            </td>
-                          ))}
+                          {tableColumns.map(col => {
+                            const isEditing = editingCell?.rowId === row.id && editingCell?.column === col;
+                            const isFK = isForeignKey(col);
+                            const refTable = getReferencedTable(col);
+                            const refTableData = refTable ? (db[refTable] || []) : [];
+                            
+                            return (
+                              <td 
+                                key={col} 
+                                className={`border border-gray-300 px-4 py-2 relative ${
+                                  col === 'id' 
+                                    ? '' 
+                                    : 'hover:bg-blue-50 transition-colors'
+                                }`}
+                                onDoubleClick={() => handleCellDoubleClick(row.id, col)}
+                                style={{ cursor: col === 'id' ? 'default' : 'pointer' }}
+                                title={col === 'id' ? 'ID cannot be edited' : 'Double-click to edit'}
+                              >
+                                {isEditing ? (
+                                  isFK && refTableData.length > 0 ? (
+                                    <select
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={() => handleCellSave(selectedTable, row.id, col)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleCellSave(selectedTable, row.id, col);
+                                        } else if (e.key === 'Escape') {
+                                          handleCellCancel();
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="w-full p-1 border-2 border-blue-500 rounded"
+                                    >
+                                      <option value="">Select {refTable}...</option>
+                                      {refTableData.map(refRow => (
+                                        <option key={refRow.id} value={refRow.id}>
+                                          {refRow.id} - {refRow.name || JSON.stringify(refRow).substring(0, 30)}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      onBlur={() => handleCellSave(selectedTable, row.id, col)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          handleCellSave(selectedTable, row.id, col);
+                                        } else if (e.key === 'Escape') {
+                                          handleCellCancel();
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="w-full p-1 border-2 border-blue-500 rounded"
+                                    />
+                                  )
+                                ) : (
+                                  <span className={col === 'id' ? 'font-semibold text-gray-700' : ''}>
+                                    {String(row[col] || '')}
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
                           <td className="border border-gray-300 px-4 py-2">
                             <button
                               onClick={() => handleDeleteRow(selectedTable, row.id)}
