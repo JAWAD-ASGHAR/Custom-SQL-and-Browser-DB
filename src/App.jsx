@@ -38,6 +38,7 @@ function App() {
   const [editingCell, setEditingCell] = useState(null); // { rowId, column }
   const [editValue, setEditValue] = useState('');
   const [tablesToLink, setTablesToLink] = useState([]); // Tables to link when creating new table
+  const [sidebarOpen, setSidebarOpen] = useState(false); // For mobile sidebar
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -399,22 +400,21 @@ function App() {
   // Get all table names for UI
   const tableNames = Object.keys(db.tables || {});
 
-  // Handle export/download
-  const handleExport = () => {
-    try {
-      const jsonData = exportDatabase();
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `minidb-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      alert('Database exported successfully!');
-    } catch (error) {
-      alert(`Error exporting database: ${error.message}`);
+  // Handle clear database
+  const handleClearDatabase = () => {
+    const confirmMessage = 'Are you sure you want to clear the entire database?\n\n' +
+      'This will delete ALL tables and data. This action cannot be undone!\n\n' +
+      'Consider exporting your data first if you want to keep a backup.';
+    
+    if (confirm(confirmMessage)) {
+      try {
+        localStorage.removeItem('MiniDB');
+        refreshDb();
+        setSelectedTable(null);
+        alert('Database cleared successfully!');
+      } catch (error) {
+        alert(`Error clearing database: ${error.message}`);
+      }
     }
   };
 
@@ -491,8 +491,22 @@ function App() {
     }
   };
 
+  // Suggested queries for the query console
+  const suggestedQueries = [
+    { name: 'Select all customers', query: 'SELECT * FROM customers' },
+    { name: 'Select customers with names', query: 'SELECT name, email FROM customers' },
+    { name: 'Filter customers', query: 'SELECT * FROM customers WHERE name = "John Doe"' },
+    { name: 'Join carts and customers', query: 'JOIN carts customers ON carts.customerId = customers.id' },
+    { name: 'Join cart items and products', query: 'JOIN cart_items products ON cart_items.productId = products.id' },
+    { name: 'Join orders and customers', query: 'JOIN orders customers ON orders.customerId = customers.id' },
+    { name: 'Union customers and admins', query: 'UNION customers admins' },
+    { name: 'Intersect tables', query: 'INTERSECT customers admins' },
+    { name: 'Difference between tables', query: 'DIFF customers admins' },
+    { name: 'Show all tables', query: 'SHOW TABLES' },
+  ];
+
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-[#1e1e1e] overflow-hidden text-[#e0e0e0] w-full max-w-full">
       {/* Hidden file input for import */}
       <input
         type="file"
@@ -502,138 +516,199 @@ function App() {
         style={{ display: 'none' }}
       />
 
-      {/* Sidebar - Fixed */}
-      <div className="w-64 bg-gray-800 text-white flex flex-col fixed left-0 top-0 bottom-0 overflow-y-auto">
-        <div className="p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">MiniDB</h1>
-          <p className="text-sm text-gray-400">Browser Database</p>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-70 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Supabase Style */}
+      <div className={`w-64 bg-[#1a1a1a] border-r border-[#2a2a2a] text-white flex flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0`}>
+        <div className="p-4 border-b border-[#2a2a2a] flex items-center gap-3">
+          <img 
+            src="/favicon.png" 
+            alt="MiniDB Logo" 
+            className="w-8 h-8 rounded"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <div className="flex-1">
+            <h1 className="text-lg font-semibold text-white">MiniDB</h1>
+            <p className="text-xs text-[#8b8b8b]">Browser Database</p>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden text-[#8b8b8b] hover:text-white transition-colors"
+          >
+            ✕
+          </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-3 flex-1 overflow-y-auto">
           <button
-            onClick={() => setShowCreateTable(true)}
-            className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded mb-2"
+            onClick={() => {
+              setShowCreateTable(true);
+              setSidebarOpen(false);
+            }}
+            className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white px-3 py-2 rounded-md mb-3 text-sm font-medium transition-colors"
           >
             + Create Table
           </button>
           <button
-            onClick={() => setShowRelationsView(true)}
-            className="w-full bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded mb-4"
+            onClick={() => {
+              setShowRelationsView(true);
+              setSidebarOpen(false);
+            }}
+            className="w-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white px-3 py-2 rounded-md mb-4 text-sm font-medium transition-colors"
           >
             🔗 View Relations
           </button>
 
+          <div className="mb-2">
+            <p className="text-xs font-semibold text-[#8b8b8b] uppercase tracking-wider px-3 py-2">Tables</p>
+          </div>
           <div className="space-y-1">
-            {tableNames.map(tableName => {
-              const table = getTable(tableName);
-              const rowCount = table ? Object.keys(table.rows).length : 0;
-              return (
-                <div
-                  key={tableName}
-                  className={`p-2 rounded cursor-pointer flex justify-between items-center ${
-                    selectedTable === tableName ? 'bg-blue-600' : 'hover:bg-gray-700'
-                  }`}
-                  onClick={() => setSelectedTable(tableName)}
-                >
-                  <span>{tableName} ({rowCount})</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTable(tableName);
+            {tableNames.length === 0 ? (
+              <p className="text-[#8b8b8b] text-sm p-3">No tables yet</p>
+            ) : (
+              tableNames.map(tableName => {
+                const table = getTable(tableName);
+                const rowCount = table ? Object.keys(table.rows).length : 0;
+                return (
+                  <div
+                    key={tableName}
+                    className={`px-3 py-2 rounded-md cursor-pointer flex justify-between items-center group transition-colors ${
+                      selectedTable === tableName 
+                        ? 'bg-[#3b82f6] text-white' 
+                        : 'hover:bg-[#2a2a2a] text-[#e0e0e0]'
+                    }`}
+                    onClick={() => {
+                      setSelectedTable(tableName);
+                      setSidebarOpen(false);
                     }}
-                    className="text-red-400 hover:text-red-300"
                   >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-sm truncate">{tableName}</span>
+                      <span className={`text-xs ${selectedTable === tableName ? 'text-blue-200' : 'text-[#8b8b8b]'}`}>
+                        ({rowCount})
+                      </span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTable(tableName);
+                      }}
+                      className="text-[#8b8b8b] hover:text-red-400 flex-shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete table"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col ml-64">
-        {/* Header with Import/Export buttons */}
-        <div className="bg-white border-b px-6 py-3 flex justify-between items-center">
-          <div className="flex">
+      {/* Main Content - Supabase Style */}
+      <div className="flex-1 flex flex-col lg:ml-64 bg-[#1e1e1e] min-w-0 overflow-hidden">
+        {/* Header - Supabase Style */}
+        <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 lg:px-6 py-3 flex justify-between items-center gap-3 flex-shrink-0 overflow-hidden">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Mobile menu button */}
             <button
-              className={`px-6 py-3 font-semibold ${
-                selectedTable 
-                  ? 'border-b-2 border-blue-600 text-blue-600' 
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-              onClick={() => {
-                const firstTable = tableNames[0];
-                setSelectedTable(firstTable || null);
-              }}
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 text-[#8b8b8b] hover:text-white transition-colors flex-shrink-0"
+              title="Open menu"
             >
-              Tables
+              ☰
             </button>
-            <button
-              className={`px-6 py-3 font-semibold ${
-                !selectedTable 
-                  ? 'border-b-2 border-blue-600 text-blue-600' 
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-              onClick={() => setSelectedTable(null)}
-            >
-              Query Console
-            </button>
+            
+            <div className="flex gap-1 flex-shrink-0">
+              <button
+                className={`px-4 py-2 font-medium text-sm rounded-md transition-colors whitespace-nowrap ${
+                  selectedTable 
+                    ? 'bg-[#2a2a2a] text-white' 
+                    : 'text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]'
+                }`}
+                onClick={() => {
+                  const firstTable = tableNames[0];
+                  setSelectedTable(firstTable || null);
+                }}
+              >
+                Tables
+              </button>
+              <button
+                className={`px-4 py-2 font-medium text-sm rounded-md transition-colors whitespace-nowrap ${
+                  !selectedTable 
+                    ? 'bg-[#2a2a2a] text-white' 
+                    : 'text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]'
+                }`}
+                onClick={() => setSelectedTable(null)}
+              >
+                SQL Editor
+              </button>
+            </div>
           </div>
           
-          {/* Import/Export buttons */}
-          <div className="flex gap-2">
+          {/* Action buttons - Supabase Style */}
+          <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={handleDownloadSample}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+              className="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-md text-xs font-medium transition-colors whitespace-nowrap"
               title="Download sample dataset"
             >
-              📥 Download Sample
-            </button>
-            <button
-              onClick={handleExport}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-              title="Export current database"
-            >
-              💾 Export
+              Sample
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+              className="px-3 py-1.5 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-xs font-medium transition-colors whitespace-nowrap"
               title="Import database from file"
             >
-              📤 Import
+              Import
+            </button>
+            <button
+              onClick={handleClearDatabase}
+              className="px-3 py-1.5 bg-[#ef4444] hover:bg-[#dc2626] text-white rounded-md text-xs font-medium transition-colors whitespace-nowrap"
+              title="Clear entire database"
+            >
+              Clear
             </button>
           </div>
         </div>
 
         {/* Content */}
         {selectedTable ? (
-          <div className="flex-1 overflow-auto p-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold">{selectedTable}</h2>
-                <div className="space-x-2">
+          <div className="flex-1 overflow-hidden p-4 lg:p-6 min-w-0">
+            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 h-full flex flex-col min-w-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 flex-shrink-0">
+                <h2 className="text-xl lg:text-2xl font-semibold text-white">{selectedTable}</h2>
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => {
                       setRelationFromTable(selectedTable);
                       setShowCreateRelation(true);
                     }}
-                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                    className="px-3 py-1.5 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-sm font-medium transition-colors"
                     title="Create a relation to another table"
                   >
-                    🔗 Create Relation
+                    Relation
                   </button>
                   <button
                     onClick={() => handleAddColumn(selectedTable)}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    className="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-md text-sm font-medium transition-colors"
                   >
                     + Column
                   </button>
                   <button
                     onClick={() => setShowAddRow(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-3 py-1.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md text-sm font-medium transition-colors"
                   >
                     + Row
                   </button>
@@ -641,23 +716,24 @@ function App() {
               </div>
 
               {currentTable.length === 0 ? (
-                <div>
-                  <p className="text-gray-500 mb-4">No rows in this table. Add a row to get started!</p>
-                  <p className="text-sm text-gray-400">Note: The 'id' column is automatically added as the primary key (UUID).</p>
+                <div className="text-center py-12">
+                  <p className="text-[#8b8b8b] mb-2">No rows in this table. Add a row to get started!</p>
+                  <p className="text-sm text-[#6b6b6b]">Note: The 'id' column is automatically added as the primary key (UUID).</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse border border-gray-300">
-                    <thead>
-                      <tr className="bg-gray-100">
+                <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+                  <div className="table-scroll-container h-full w-full">
+                    <table className="border-collapse">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
                         {tableColumns.map(col => (
-                          <th key={col} className="border border-gray-300 px-4 py-2 text-left">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1">
-                                <span>{col}</span>
+                          <th key={col} className="border-b border-[#2a2a2a] px-3 py-3 text-left whitespace-nowrap">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="truncate text-xs lg:text-sm font-medium text-white">{col}</span>
                                 {isForeignKey(col) && (
                                   <span 
-                                    className="text-blue-600 text-xs" 
+                                    className="text-[#8b5cf6] text-xs flex-shrink-0" 
                                     title={`Foreign key → ${getReferencedTable(col)}`}
                                   >
                                     🔗
@@ -665,7 +741,7 @@ function App() {
                                 )}
                                 {col === 'id' && (
                                   <span 
-                                    className="text-green-600 text-xs" 
+                                    className="text-[#10b981] text-xs flex-shrink-0" 
                                     title="Primary key"
                                   >
                                     🔑
@@ -675,7 +751,8 @@ function App() {
                               {col !== 'id' && (
                                 <button
                                   onClick={() => handleDeleteColumn(selectedTable, col)}
-                                  className="text-red-600 hover:text-red-800 ml-2"
+                                  className="text-[#8b8b8b] hover:text-red-400 ml-1 flex-shrink-0 transition-colors"
+                                  title="Delete column"
                                 >
                                   ×
                                 </button>
@@ -683,12 +760,12 @@ function App() {
                             </div>
                           </th>
                         ))}
-                        <th className="border border-gray-300 px-4 py-2">Actions</th>
+                        <th className="border-b border-[#2a2a2a] px-3 py-3 whitespace-nowrap sticky right-0 bg-[#1e1e1e] text-white text-xs lg:text-sm font-medium">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {currentTable.map((row, idx) => (
-                        <tr key={row.id || idx} className="hover:bg-gray-50">
+                        <tr key={row.id || idx} className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors">
                           {tableColumns.map(col => {
                             const isEditing = editingCell?.rowId === row.id && editingCell?.column === col;
                             const isFK = isForeignKey(col);
@@ -698,10 +775,10 @@ function App() {
                             return (
                               <td 
                                 key={col} 
-                                className={`border border-gray-300 px-4 py-2 relative ${
+                                className={`px-3 py-3 relative max-w-xs lg:max-w-none ${
                                   col === 'id' 
-                                    ? '' 
-                                    : 'hover:bg-blue-50 transition-colors'
+                                    ? 'text-[#8b8b8b]' 
+                                    : 'text-[#e0e0e0] hover:bg-[#252525] transition-colors'
                                 }`}
                                 onDoubleClick={() => handleCellDoubleClick(row.id, col)}
                                 style={{ cursor: col === 'id' ? 'default' : 'pointer' }}
@@ -721,11 +798,11 @@ function App() {
                                         }
                                       }}
                                       autoFocus
-                                      className="w-full p-1 border-2 border-blue-500 rounded"
+                                      className="w-full p-2 bg-[#1e1e1e] border border-[#3b82f6] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                                     >
-                                      <option value="">Select {refTable}...</option>
+                                      <option value="" className="bg-[#1e1e1e]">Select {refTable}...</option>
                                       {refTableData.map(refRow => (
-                                        <option key={refRow.id} value={refRow.id}>
+                                        <option key={refRow.id} value={refRow.id} className="bg-[#1e1e1e]">
                                           {refRow.id.substring(0, 8)}... - {getForeignKeyDisplay(col, refRow.id)}
                                         </option>
                                       ))}
@@ -744,32 +821,34 @@ function App() {
                                         }
                                       }}
                                       autoFocus
-                                      className="w-full p-1 border-2 border-blue-500 rounded"
+                                      className="w-full p-2 bg-[#1e1e1e] border border-[#3b82f6] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                                     />
                                   )
                                 ) : (
                                   isFK ? (
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-blue-600 font-medium">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="text-[#8b5cf6] font-medium truncate">
                                         {getForeignKeyDisplay(col, row[col])}
                                       </span>
                                       {row[col] && (
-                                        <span className="text-xs text-gray-400">({row[col].substring(0, 8)}...)</span>
+                                        <span className="text-xs text-[#6b6b6b] flex-shrink-0">({row[col].substring(0, 8)}...)</span>
                                       )}
                                     </div>
                                   ) : (
-                                    <span className={col === 'id' ? 'font-semibold text-gray-700' : ''}>
-                                      {col === 'id' ? row[col].substring(0, 8) + '...' : String(row[col] || '')}
-                                    </span>
+                                    <div>
+                                      <div className="break-words text-xs lg:text-sm truncate lg:whitespace-normal" title={String(row[col] || '')}>
+                                        {col === 'id' ? row[col].substring(0, 8) + '...' : String(row[col] || '')}
+                                      </div>
+                                    </div>
                                   )
                                 )}
                               </td>
                             );
                           })}
-                          <td className="border border-gray-300 px-4 py-2">
+                          <td className="px-3 py-3 sticky right-0 bg-[#1a1a1a]">
                             <button
                               onClick={() => handleDeleteRow(selectedTable, row.id)}
-                              className="text-red-600 hover:text-red-800"
+                              className="text-[#ef4444] hover:text-[#dc2626] text-xs lg:text-sm transition-colors"
                             >
                               Delete
                             </button>
@@ -777,145 +856,152 @@ function App() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Query Console and Examples - Side by Side */}
-            <div className="flex flex-1 gap-6 p-6 overflow-hidden">
-              {/* Query Console - Left */}
-              <div className="flex-1 bg-white rounded-lg shadow p-6 flex flex-col overflow-hidden">
-                <h2 className="text-2xl font-bold mb-4">Query Console</h2>
-                <div className="flex-1 flex flex-col space-y-4 min-h-0">
-                  <div className="flex-1">
-                    <textarea
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Enter query... (e.g., SELECT * FROM customers WHERE name = 'John')"
-                      className="w-full h-full p-3 border rounded font-mono resize-none"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                          handleRunQuery();
-                        }
-                      }}
-                    />
-                  </div>
+          <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+            {/* Query Editor - Supabase Style Split Layout - Fixed Height */}
+            <div className="flex flex-col lg:flex-row h-64 lg:h-72 gap-0 border-b border-[#2a2a2a] flex-shrink-0">
+              {/* Query Editor - Left Side */}
+              <div className="flex-1 flex flex-col overflow-hidden border-r border-[#2a2a2a] min-w-0">
+                <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-2 flex items-center justify-between flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-white">SQL Editor</h3>
                   <div className="flex gap-2">
                     <button
                       onClick={handleRunQuery}
-                      className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="px-3 py-1.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md text-xs font-medium transition-colors flex items-center gap-2"
                     >
-                      Run Query (Ctrl+Enter)
+                      <span>▶</span> Run
                     </button>
                     <button
                       onClick={() => {
                         setQuery('');
                         setResult(null);
                       }}
-                      className="px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                      className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md text-xs font-medium transition-colors"
                     >
                       Clear
                     </button>
                   </div>
                 </div>
+                <div className="flex-1 overflow-auto p-4 min-h-0">
+                  <textarea
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="-- Enter your SQL query here\n-- Press Ctrl+Enter (Cmd+Enter on Mac) to run\n\nSELECT * FROM customers;"
+                    className="w-full h-full min-h-[150px] bg-[#1e1e1e] text-[#e0e0e0] font-mono text-sm p-4 rounded-md border border-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] resize-none"
+                    style={{ fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace" }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        handleRunQuery();
+                      }
+                    }}
+                  />
+                </div>
+                <div className="bg-[#1a1a1a] border-t border-[#2a2a2a] px-4 py-1.5 text-xs text-[#8b8b8b] flex-shrink-0">
+                  <span className="font-mono">Ctrl+Enter</span> to run query
+                </div>
               </div>
 
-              {/* Query Examples - Right */}
-              <div className="w-80 bg-white rounded-lg shadow p-6 overflow-y-auto">
-                <h3 className="font-semibold mb-4 text-lg">Query Examples:</h3>
-                <div className="space-y-2 text-sm font-mono">
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SELECT * FROM customers')}>
-                    SELECT * FROM customers
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SELECT name, email FROM customers')}>
-                    SELECT name, email FROM customers
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SELECT * FROM customers WHERE name = "John Doe"')}>
-                    SELECT * FROM customers WHERE name = "John Doe"
-                  </div>
-                  <div className="p-2 bg-blue-50 rounded hover:bg-blue-100 cursor-pointer border border-blue-200" onClick={() => setQuery('JOIN carts customers ON carts.customerId = customers.id')}>
-                    JOIN carts customers ON carts.customerId = customers.id
-                  </div>
-                  <div className="p-2 bg-blue-50 rounded hover:bg-blue-100 cursor-pointer border border-blue-200" onClick={() => setQuery('JOIN cart_items products ON cart_items.productId = products.id')}>
-                    JOIN cart_items products ON cart_items.productId = products.id
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('UNION customers admins')}>
-                    UNION customers admins
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('INTERSECT customers admins')}>
-                    INTERSECT customers admins
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('DIFF customers admins')}>
-                    DIFF customers admins
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SHOW TABLES')}>
-                    SHOW TABLES
+              {/* Suggested Queries - Right Side (Scrollable) */}
+              <div className="w-full lg:w-80 bg-[#1a1a1a] flex flex-col overflow-hidden flex-shrink-0">
+                <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-2 flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-white">Suggested Queries</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                  <div className="space-y-2">
+                    {suggestedQueries.map((suggested, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setQuery(suggested.query)}
+                        className="w-full text-left p-3 bg-[#1e1e1e] hover:bg-[#252525] border border-[#2a2a2a] rounded-md transition-colors group"
+                      >
+                        <div className="text-xs font-medium text-[#8b8b8b] mb-1">{suggested.name}</div>
+                        <div className="text-xs font-mono text-[#e0e0e0] break-all">{suggested.query}</div>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Results - Bottom */}
-            <div className="bg-white rounded-lg shadow p-6 mx-6 mb-6 overflow-auto max-h-96">
-              <h3 className="text-xl font-bold mb-4">Results</h3>
-              {!result ? (
-                <p className="text-gray-500">No query executed yet</p>
-              ) : result.error ? (
-                <div className="bg-red-50 border border-red-200 rounded p-4">
-                  <p className="text-red-800">Error: {result.error}</p>
-                </div>
-              ) : result.data && result.data.length > 0 ? (
-                <div>
-                  <p className="mb-2">Found {result.data.length} row(s)</p>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse border border-gray-300">
-                      <thead>
-                        <tr className="bg-gray-100">
-                          {Object.keys(result.data[0]).map(col => (
-                            <th key={col} className="border border-gray-300 px-4 py-2 text-left">
-                              {col}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {result.data.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
+            {/* Results - Bottom Section - Takes Remaining Space */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-[#1a1a1a] min-h-0">
+              <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3">
+                <h3 className="text-sm font-semibold text-white">
+                  {result ? (result.error ? 'Error' : 'Results') : 'Results'}
+                </h3>
+              </div>
+              <div className="flex-1 overflow-auto p-4 min-h-0">
+                {!result ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-[#8b8b8b] text-sm">No query executed yet. Write a query and press Ctrl+Enter to run.</p>
+                  </div>
+                ) : result.error ? (
+                  <div className="bg-[#7f1d1d] border border-[#991b1b] rounded-md p-4">
+                    <p className="text-red-300 text-sm font-medium">Error: {result.error}</p>
+                  </div>
+                ) : result.data && result.data.length > 0 ? (
+                  <div className="h-full flex flex-col">
+                    <p className="text-[#8b8b8b] text-sm mb-4 flex-shrink-0">Found {result.data.length} row(s)</p>
+                    <div className="flex-1 overflow-auto min-h-0">
+                      <div className="table-scroll-container w-full h-full">
+                        <table className="border-collapse">
+                        <thead>
+                          <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
                             {Object.keys(result.data[0]).map(col => (
-                              <td key={col} className="border border-gray-300 px-4 py-2">
-                                {String(row[col] || '')}
-                              </td>
+                              <th key={col} className="border-b border-[#2a2a2a] px-3 py-2 text-left text-xs font-medium text-white whitespace-nowrap">
+                                {col}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {result.data.map((row, idx) => (
+                            <tr key={idx} className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors">
+                              {Object.keys(result.data[0]).map(col => (
+                                <td key={col} className="px-3 py-2 text-xs text-[#e0e0e0]">
+                                  <div className="max-w-xs lg:max-w-none truncate lg:whitespace-normal" title={String(row[col] || '')}>
+                                    {String(row[col] || '')}
+                                  </div>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <p className="text-gray-500">No results</p>
-              )}
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-[#8b8b8b] text-sm">No results</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Create Table Modal */}
+      {/* Create Table Modal - Supabase Style */}
       {showCreateTable && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">Create Table</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold text-white mb-4">Create Table</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Table Name</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Table Name</label>
                 <input
                   type="text"
                   value={newTableName}
                   onChange={(e) => setNewTableName(e.target.value)}
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   placeholder="e.g., products"
                 />
               </div>
@@ -923,12 +1009,12 @@ function App() {
               {/* Link to Other Tables Section */}
               {tableNames.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
                     Link to Other Tables (Optional)
                   </label>
-                  <div className="space-y-2 max-h-32 overflow-y-auto border p-2 rounded bg-gray-50">
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-[#2a2a2a] p-2 rounded-md bg-[#1e1e1e]">
                     {tableNames.map(tableName => (
-                      <label key={tableName} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                      <label key={tableName} className="flex items-center space-x-2 cursor-pointer hover:bg-[#252525] p-1.5 rounded-md transition-colors">
                         <input
                           type="checkbox"
                           checked={tablesToLink.includes(tableName)}
@@ -939,14 +1025,14 @@ function App() {
                               setTablesToLink(tablesToLink.filter(t => t !== tableName));
                             }
                           }}
-                          className="w-4 h-4"
+                          className="w-4 h-4 text-[#3b82f6] bg-[#1e1e1e] border-[#2a2a2a] rounded focus:ring-[#3b82f6]"
                         />
-                        <span className="text-sm flex-1">{tableName}</span>
-                        <span className="text-xs text-gray-500">({tableName}_id)</span>
+                        <span className="text-sm flex-1 text-[#e0e0e0]">{tableName}</span>
+                        <span className="text-xs text-[#8b8b8b]">({tableName}_id)</span>
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-[#8b8b8b] mt-1">
                     Selected tables will create foreign key columns that link to them
                   </p>
                 </div>
@@ -955,7 +1041,7 @@ function App() {
             <div className="mt-6 flex gap-2">
               <button
                 onClick={handleCreateTable}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex-1 px-4 py-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md font-medium transition-colors"
               >
                 Create
               </button>
@@ -965,7 +1051,7 @@ function App() {
                   setNewTableName('');
                   setTablesToLink([]);
                 }}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -974,14 +1060,14 @@ function App() {
         </div>
       )}
 
-      {/* Add Row Modal */}
+      {/* Add Row Modal - Supabase Style */}
       {showAddRow && selectedTable && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Add Row</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold text-white mb-4">Add Row</h2>
             <div className="space-y-4">
               {tableColumns.length === 1 && tableColumns[0] === 'id' ? (
-                <p className="text-gray-500 text-sm">
+                <p className="text-[#8b8b8b] text-sm">
                   Table has no columns. Add a column first.
                 </p>
               ) : (
@@ -996,21 +1082,21 @@ function App() {
                   
                   return (
                     <div key={col}>
-                      <label className="block text-sm font-medium mb-1">
+                      <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
                         {col}
                         {isFK && (
-                          <span className="text-blue-600 text-xs ml-2" title={`Foreign key → ${refTable}`}>
+                          <span className="text-[#8b5cf6] text-xs ml-2" title={`Foreign key → ${refTable}`}>
                             🔗
                           </span>
                         )}
                         {isCreatedAt && (
-                          <span className="text-green-600 text-xs ml-2" title="Auto-set to current date/time">
+                          <span className="text-[#10b981] text-xs ml-2" title="Auto-set to current date/time">
                             ⏰ (auto)
                           </span>
                         )}
                       </label>
                       {isCreatedAt && (
-                        <p className="text-xs text-gray-500 mb-1">
+                        <p className="text-xs text-[#8b8b8b] mb-1">
                           Leave empty to auto-set to current date/time
                         </p>
                       )}
@@ -1020,11 +1106,11 @@ function App() {
                           onChange={(e) => {
                             setNewRow({ ...newRow, [col]: e.target.value || null });
                           }}
-                          className="w-full p-2 border rounded"
+                          className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                         >
-                          <option value="">Select {refTable}...</option>
+                          <option value="" className="bg-[#1e1e1e]">Select {refTable}...</option>
                           {refTableData.map(row => (
-                            <option key={row.id} value={row.id}>
+                            <option key={row.id} value={row.id} className="bg-[#1e1e1e]">
                               {row.id.substring(0, 8)}... - {getForeignKeyDisplay(col, row.id)}
                             </option>
                           ))}
@@ -1039,7 +1125,7 @@ function App() {
                             const numValue = value.trim() !== '' && !isNaN(value) ? Number(value) : value;
                             setNewRow({ ...newRow, [col]: numValue || null });
                           }}
-                          className="w-full p-2 border rounded"
+                          className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                           placeholder={isFK ? `Enter ${refTable} ID` : `Enter ${col}`}
                         />
                       )}
@@ -1051,7 +1137,7 @@ function App() {
             <div className="mt-6 flex gap-2">
               <button
                 onClick={handleAddRow}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="flex-1 px-4 py-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md font-medium transition-colors"
               >
                 Add
               </button>
@@ -1060,7 +1146,7 @@ function App() {
                   setShowAddRow(false);
                   setNewRow({});
                 }}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -1069,19 +1155,19 @@ function App() {
         </div>
       )}
 
-      {/* Add Column Modal */}
+      {/* Add Column Modal - Supabase Style */}
       {showAddColumn && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
-            <h2 className="text-xl font-bold mb-4">Add Column to {relationFromTable}</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold text-white mb-4">Add Column to {relationFromTable}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Column Name</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Column Name</label>
                 <input
                   type="text"
                   value={newColumnName}
                   onChange={(e) => setNewColumnName(e.target.value)}
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   placeholder="e.g., email, age, etc."
                   disabled={columnIsForeignKey}
                 />
@@ -1092,11 +1178,11 @@ function App() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Column Type</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Column Type</label>
                 <select
                   value={columnType}
                   onChange={(e) => setColumnType(e.target.value)}
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   disabled={columnIsForeignKey}
                 >
                   <option value="string">String</option>
@@ -1123,11 +1209,11 @@ function App() {
               </div>
               {columnIsForeignKey && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">References Table</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">References Table</label>
                   <select
                     value={referencedTable}
                     onChange={(e) => setReferencedTable(e.target.value)}
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   >
                     <option value="">Select a table...</option>
                     {tableNames
@@ -1159,7 +1245,7 @@ function App() {
                   setColumnIsForeignKey(false);
                   setReferencedTable('');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -1168,21 +1254,21 @@ function App() {
         </div>
       )}
 
-      {/* Create Relation Modal */}
+      {/* Create Relation Modal - Supabase Style */}
       {showCreateRelation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Create Relation (Foreign Key)</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold text-white mb-4">Create Relation (Foreign Key)</h2>
             <div className="space-y-4 mb-4">
               <div>
-                <label className="block text-sm font-medium mb-1">From Table (has foreign key)</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">From Table (has foreign key)</label>
                 <select
                   value={relationFromTable}
                   onChange={(e) => {
                     setRelationFromTable(e.target.value);
                     setRelationFromColumn('');
                   }}
-                  className="w-full p-2 border rounded"
+                  className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                 >
                   <option value="">Select table...</option>
                   {tableNames.map(tableName => (
@@ -1195,24 +1281,24 @@ function App() {
 
               {relationFromTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Column Name (or leave empty for auto)</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Column Name (or leave empty for auto)</label>
                   <input
                     type="text"
                     value={relationFromColumn}
                     onChange={(e) => setRelationFromColumn(e.target.value)}
                     placeholder={`Will be: ${relationToTable || 'tablename'}_id`}
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   />
                 </div>
               )}
 
               {relationFromTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">To Table (referenced table)</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">To Table (referenced table)</label>
                   <select
                     value={relationToTable}
                     onChange={(e) => setRelationToTable(e.target.value)}
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   >
                     <option value="">Select table to reference...</option>
                     {tableNames
@@ -1228,11 +1314,11 @@ function App() {
 
               {relationFromTable && relationToTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">On Delete Action</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">On Delete Action</label>
                   <select
                     value={onDeleteAction}
                     onChange={(e) => setOnDeleteAction(e.target.value)}
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   >
                     <option value="restrict">Restrict (prevent deletion)</option>
                     <option value="cascade">Cascade (delete related rows)</option>
@@ -1269,7 +1355,7 @@ function App() {
                   setRelationToTable('');
                   setOnDeleteAction('restrict');
                 }}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -1278,12 +1364,12 @@ function App() {
         </div>
       )}
 
-      {/* View Relations Modal */}
+      {/* View Relations Modal - Supabase Style */}
       {showRelationsView && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Database Relations</h2>
+              <h2 className="text-xl font-semibold text-white">Database Relations</h2>
               <button
                 onClick={() => setShowRelationsView(false)}
                 className="text-gray-500 hover:text-gray-700"
@@ -1343,7 +1429,7 @@ function App() {
             <div className="mt-6">
               <button
                 onClick={() => setShowRelationsView(false)}
-                className="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                className="w-full px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
                 Close
               </button>
