@@ -1,21 +1,5 @@
-/**
- * MiniDB Query Engine
- * 
- * Implements SQL-like query execution on the new table structure.
- * Supports: SELECT, WHERE, JOIN, UNION, INTERSECT, DIFF
- * 
- * Discrete Structures Concepts:
- * - Tables = Sets
- * - Rows = Elements
- * - JOIN = Relation composition
- * - UNION/INTERSECT/DIFF = Set operations
- */
-
 import { loadDB, getTableRows } from './database';
 
-/**
- * Helper: Check if two records are equal (for set operations)
- */
 function recordsEqual(a, b) {
   const keysA = Object.keys(a).sort();
   const keysB = Object.keys(b).sort();
@@ -25,9 +9,6 @@ function recordsEqual(a, b) {
   return keysA.every(key => a[key] === b[key]);
 }
 
-/**
- * Helper: Parse value (try number, boolean, or keep as string)
- */
 function parseValue(str) {
   const trimmed = str.trim();
   if (!isNaN(Number(trimmed)) && trimmed !== '') {
@@ -35,13 +16,9 @@ function parseValue(str) {
   }
   if (trimmed.toLowerCase() === 'true') return true;
   if (trimmed.toLowerCase() === 'false') return false;
-  // Remove quotes if present
   return trimmed.replace(/^["']|["']$/g, '');
 }
 
-/**
- * Helper: Evaluate condition
- */
 function evaluateCondition(record, field, operator, value) {
   const recordValue = record[field];
   
@@ -61,9 +38,6 @@ function evaluateCondition(record, field, operator, value) {
   }
 }
 
-/**
- * Helper: Parse WHERE clause
- */
 function parseWhere(whereStr) {
   const patterns = [
     /(\w+)\s*(>=|<=|!=|LIKE)\s*(.+)/i,
@@ -83,14 +57,9 @@ function parseWhere(whereStr) {
   return null;
 }
 
-/**
- * Execute SELECT query
- * SELECT [columns] FROM table [WHERE condition]
- */
 function executeSelect(query, db) {
   const upper = query.toUpperCase();
   
-  // Parse SELECT ... FROM ...
   const fromMatch = query.match(/SELECT\s+(.+?)\s+FROM\s+(\w+)/i);
   if (!fromMatch) {
     return { error: 'Invalid SELECT syntax. Use: SELECT columns FROM table' };
@@ -105,13 +74,11 @@ function executeSelect(query, db) {
 
   let result = getTableRows(tableName);
   
-  // Handle column selection
   const selectAll = columnsStr === '*';
   let selectedColumns = null;
   
   if (!selectAll) {
     selectedColumns = columnsStr.split(',').map(c => c.trim());
-    // Validate columns exist
     const table = db.tables[tableName];
     const validColumns = Object.keys(table.schema.columns);
     for (const col of selectedColumns) {
@@ -121,7 +88,6 @@ function executeSelect(query, db) {
     }
   }
 
-  // Apply WHERE clause
   const whereIndex = upper.indexOf('WHERE');
   if (whereIndex !== -1) {
     const whereStr = query.substring(whereIndex + 5).trim();
@@ -136,7 +102,6 @@ function executeSelect(query, db) {
     );
   }
 
-  // Project columns if needed
   if (!selectAll && selectedColumns) {
     result = result.map(record => {
       const projected = {};
@@ -150,10 +115,6 @@ function executeSelect(query, db) {
   return { data: result, type: 'table' };
 }
 
-/**
- * Execute JOIN query
- * JOIN table1 table2 ON table1.field = table2.field
- */
 function executeJoin(query, db) {
   const upper = query.toUpperCase();
   const parts = query.trim().split(/\s+/);
@@ -169,14 +130,12 @@ function executeJoin(query, db) {
     return { error: `One or both tables do not exist: ${table1Name}, ${table2Name}` };
   }
 
-  // Find ON clause
   const onIndex = upper.indexOf('ON');
   if (onIndex === -1) {
     return { error: 'JOIN requires ON clause: JOIN table1 table2 ON table1.field = table2.field' };
   }
 
   const onClause = query.substring(onIndex + 2).trim();
-  // Parse: table1.field = table2.field
   const onMatch = onClause.match(/(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/);
   
   if (!onMatch) {
@@ -185,7 +144,6 @@ function executeJoin(query, db) {
 
   const [, table1Ref, field1, table2Ref, field2] = onMatch;
   
-  // Determine which field belongs to which table
   let table1Field, table2Field;
   if (table1Ref.toLowerCase() === table1Name) {
     table1Field = field1;
@@ -197,16 +155,13 @@ function executeJoin(query, db) {
     return { error: `Table reference "${table1Ref}" does not match table names` };
   }
 
-  // Get rows from both tables
   const rows1 = getTableRows(table1Name);
   const rows2 = getTableRows(table2Name);
 
-  // Perform INNER JOIN
   const joined = [];
   for (const record1 of rows1) {
     for (const record2 of rows2) {
       if (record1[table1Field] === record2[table2Field]) {
-        // Merge records, prefixing fields with table names to avoid conflicts
         const merged = {
           ...Object.fromEntries(
             Object.entries(record1).map(([k, v]) => [`${table1Name}_${k}`, v])
@@ -223,10 +178,6 @@ function executeJoin(query, db) {
   return { data: joined, type: 'join' };
 }
 
-/**
- * Execute UNION operation (set union)
- * UNION tableA tableB
- */
 function executeUnion(query, db) {
   const parts = query.trim().split(/\s+/);
   
@@ -244,11 +195,9 @@ function executeUnion(query, db) {
   const rowsA = getTableRows(tableA);
   const rowsB = getTableRows(tableB);
 
-  // Set union: all unique elements from both sets
   const union = [];
   const seen = new Set();
 
-  // Add all from A
   for (const record of rowsA) {
     const key = JSON.stringify(record);
     if (!seen.has(key)) {
@@ -257,7 +206,6 @@ function executeUnion(query, db) {
     }
   }
 
-  // Add from B if not already in union
   for (const record of rowsB) {
     const key = JSON.stringify(record);
     if (!seen.has(key)) {
@@ -269,10 +217,6 @@ function executeUnion(query, db) {
   return { data: union, type: 'set' };
 }
 
-/**
- * Execute INTERSECT operation (set intersection)
- * INTERSECT tableA tableB
- */
 function executeIntersect(query, db) {
   const parts = query.trim().split(/\s+/);
   
@@ -290,11 +234,9 @@ function executeIntersect(query, db) {
   const rowsA = getTableRows(tableA);
   const rowsB = getTableRows(tableB);
 
-  // Set intersection: elements in both sets
   const intersection = [];
   const seen = new Set();
 
-  // Create set of B for fast lookup
   const setB = new Set(rowsB.map(r => JSON.stringify(r)));
 
   for (const record of rowsA) {
@@ -308,10 +250,6 @@ function executeIntersect(query, db) {
   return { data: intersection, type: 'set' };
 }
 
-/**
- * Execute DIFF operation (set difference: A - B)
- * DIFF tableA tableB
- */
 function executeDiff(query, db) {
   const parts = query.trim().split(/\s+/);
   
@@ -329,7 +267,6 @@ function executeDiff(query, db) {
   const rowsA = getTableRows(tableA);
   const rowsB = getTableRows(tableB);
 
-  // Set difference: elements in A but not in B
   const diff = [];
   const seen = new Set();
   const setB = new Set(rowsB.map(r => JSON.stringify(r)));
@@ -345,9 +282,6 @@ function executeDiff(query, db) {
   return { data: diff, type: 'set' };
 }
 
-/**
- * Main query execution function
- */
 export function executeQuery(query) {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -358,32 +292,26 @@ export function executeQuery(query) {
   const db = loadDB();
 
   try {
-    // SELECT query
     if (upper.startsWith('SELECT')) {
       return executeSelect(trimmed, db);
     }
 
-    // JOIN query
     if (upper.startsWith('JOIN')) {
       return executeJoin(trimmed, db);
     }
 
-    // UNION operation
     if (upper.startsWith('UNION')) {
       return executeUnion(trimmed, db);
     }
 
-    // INTERSECT operation
     if (upper.startsWith('INTERSECT')) {
       return executeIntersect(trimmed, db);
     }
 
-    // DIFF operation
     if (upper.startsWith('DIFF')) {
       return executeDiff(trimmed, db);
     }
 
-    // SHOW TABLES
     if (upper === 'SHOW TABLES') {
       const tables = Object.keys(db.tables).map(name => {
         const table = db.tables[name];

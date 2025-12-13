@@ -1,20 +1,5 @@
-/**
- * MiniDB Core Implementation
- * 
- * Discrete Structures Mapping:
- * - Tables = Sets
- * - Rows = Elements
- * - Foreign keys = Relations
- * - JOIN = Relation composition
- * - UNION/INTERSECT/DIFF = Set operations
- * - Self-relations = Transitive relations
- */
-
 const STORAGE_KEY = 'MiniDB';
 
-/**
- * Generate UUID v4
- */
 function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -23,9 +8,6 @@ function generateUUID() {
   });
 }
 
-/**
- * Load database from localStorage
- */
 export function loadDB() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -51,9 +33,6 @@ export function loadDB() {
   }
 }
 
-/**
- * Save database to localStorage
- */
 export function saveDB(db) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
@@ -63,29 +42,16 @@ export function saveDB(db) {
   }
 }
 
-/**
- * Get a table by name
- */
 export function getTable(tableName) {
   const db = loadDB();
   return db.tables[tableName] || null;
 }
 
-/**
- * Get all tables
- */
 export function getAllTables() {
   const db = loadDB();
   return db.tables;
 }
 
-/**
- * Create a new table with schema
- * @param {string} name - Table name
- * @param {Object} schema - Schema definition
- * @param {Object} schema.columns - Column definitions { columnName: { type, primary?, ... } }
- * @param {Object} schema.foreignKeys - Foreign key definitions { columnName: { references, onDelete } }
- */
 export function createTable(name, schema) {
   const db = loadDB();
   
@@ -93,13 +59,11 @@ export function createTable(name, schema) {
     throw new Error(`Table "${name}" already exists`);
   }
 
-  // Ensure id column exists as primary key
   const columns = {
     id: { type: 'uuid', primary: true },
     ...schema.columns
   };
 
-  // Validate schema
   validateSchema(columns, schema.foreignKeys || {});
 
   db.tables[name] = {
@@ -115,11 +79,7 @@ export function createTable(name, schema) {
   return db.tables[name];
 }
 
-/**
- * Validate schema structure
- */
 function validateSchema(columns, foreignKeys) {
-  // Check that all foreign key columns exist
   for (const fkColumn in foreignKeys) {
     if (!columns[fkColumn]) {
       throw new Error(`Foreign key column "${fkColumn}" does not exist in schema`);
@@ -128,7 +88,6 @@ function validateSchema(columns, foreignKeys) {
     if (!fk.references) {
       throw new Error(`Foreign key "${fkColumn}" must specify references`);
     }
-    // Parse references (format: "tableName.columnName")
     const [refTable] = fk.references.split('.');
     if (!refTable) {
       throw new Error(`Invalid foreign key reference format: "${fk.references}"`);
@@ -136,11 +95,6 @@ function validateSchema(columns, foreignKeys) {
   }
 }
 
-/**
- * Insert a row into a table
- * @param {string} tableName - Table name
- * @param {Object} data - Row data (id will be auto-generated)
- */
 export function insertRow(tableName, data) {
   const db = loadDB();
   const table = db.tables[tableName];
@@ -149,24 +103,19 @@ export function insertRow(tableName, data) {
     throw new Error(`Table "${tableName}" does not exist`);
   }
 
-  // Generate UUID for id
   const id = generateUUID();
   
-  // Build row with all required columns
   const row = { id };
   
-  // Add data for each column (except id)
   for (const columnName in table.schema.columns) {
     if (columnName === 'id') continue;
     
     const column = table.schema.columns[columnName];
     const value = data[columnName];
     
-    // Auto-set createdAt for date columns if not provided
     if (columnName === 'createdAt' && column.type === 'date' && (value === undefined || value === null || value === '')) {
       row[columnName] = new Date().toISOString();
     }
-    // Set default value if not provided
     else if (value === undefined || value === null) {
       if (column.default !== undefined) {
         row[columnName] = column.default;
@@ -178,22 +127,14 @@ export function insertRow(tableName, data) {
     }
   }
 
-  // Validate foreign keys
   validateForeignKeys(tableName, row, db);
 
-  // Insert row
   table.rows[id] = row;
   saveDB(db);
   
   return row;
 }
 
-/**
- * Update a row in a table
- * @param {string} tableName - Table name
- * @param {string} id - Row ID (UUID)
- * @param {Object} changes - Fields to update
- */
 export function updateRow(tableName, id, changes) {
   const db = loadDB();
   const table = db.tables[tableName];
@@ -206,15 +147,12 @@ export function updateRow(tableName, id, changes) {
     throw new Error(`Row with id "${id}" does not exist`);
   }
 
-  // Prevent id modification
   if ('id' in changes) {
     delete changes.id;
   }
 
-  // Create updated row
   const updatedRow = { ...table.rows[id] };
   
-  // Apply changes
   for (const columnName in changes) {
     if (!table.schema.columns[columnName]) {
       throw new Error(`Column "${columnName}" does not exist`);
@@ -222,21 +160,14 @@ export function updateRow(tableName, id, changes) {
     updatedRow[columnName] = changes[columnName];
   }
 
-  // Validate foreign keys
   validateForeignKeys(tableName, updatedRow, db);
 
-  // Update row
   table.rows[id] = updatedRow;
   saveDB(db);
   
   return updatedRow;
 }
 
-/**
- * Delete a row from a table
- * @param {string} tableName - Table name
- * @param {string} id - Row ID (UUID)
- */
 export function deleteRow(tableName, id) {
   const db = loadDB();
   const table = db.tables[tableName];
@@ -249,17 +180,12 @@ export function deleteRow(tableName, id) {
     throw new Error(`Row with id "${id}" does not exist`);
   }
 
-  // Handle cascading deletes
   handleCascadeDelete(tableName, id, db);
 
-  // Delete the row
   delete table.rows[id];
   saveDB(db);
 }
 
-/**
- * Validate foreign keys for a row
- */
 function validateForeignKeys(tableName, row, db) {
   const table = db.tables[tableName];
   if (!table) return;
@@ -267,7 +193,6 @@ function validateForeignKeys(tableName, row, db) {
   for (const fkColumn in table.schema.foreignKeys) {
     const fkValue = row[fkColumn];
     
-    // Allow null foreign keys
     if (fkValue === null || fkValue === undefined || fkValue === '') {
       continue;
     }
@@ -279,7 +204,6 @@ function validateForeignKeys(tableName, row, db) {
       throw new Error(`Referenced table "${refTable}" does not exist`);
     }
 
-    // Check if referenced row exists
     const refTableObj = db.tables[refTable];
     const refRow = refTableObj.rows[fkValue];
     
@@ -287,23 +211,16 @@ function validateForeignKeys(tableName, row, db) {
       throw new Error(`Foreign key violation: Referenced row "${fkValue}" does not exist in table "${refTable}"`);
     }
 
-    // Verify the referenced column exists (should be 'id' typically)
     if (refColumn && !refTableObj.schema.columns[refColumn]) {
       throw new Error(`Referenced column "${refColumn}" does not exist in table "${refTable}"`);
     }
   }
 }
 
-/**
- * Handle cascading deletes
- * Processes cascades iteratively to avoid deep recursion
- */
 function handleCascadeDelete(tableName, id, db) {
-  // Collect all rows that need to be deleted (for cascade) or updated (for set-null)
   const toDelete = [];
   const toUpdate = [];
   
-  // Find all tables that reference this table
   for (const otherTableName in db.tables) {
     const otherTable = db.tables[otherTableName];
     
@@ -312,23 +229,19 @@ function handleCascadeDelete(tableName, id, db) {
       const [refTable] = fk.references.split('.');
       
       if (refTable === tableName) {
-        // Find rows in otherTable that reference the deleted row
         for (const rowId in otherTable.rows) {
           const row = otherTable.rows[rowId];
           
           if (row[fkColumn] === id) {
             switch (fk.onDelete) {
               case 'cascade':
-                // Collect for deletion (will process recursively)
                 toDelete.push({ tableName: otherTableName, id: rowId });
                 break;
               case 'set-null':
-                // Set foreign key to null directly
                 otherTable.rows[rowId][fkColumn] = null;
                 break;
               case 'restrict':
               default:
-                // Prevent deletion
                 throw new Error(
                   `Cannot delete row: It is referenced by row "${rowId}" in table "${otherTableName}" ` +
                   `(foreign key: ${fkColumn}). Set onDelete to "cascade" or "set-null" to allow deletion.`
@@ -340,18 +253,12 @@ function handleCascadeDelete(tableName, id, db) {
     }
   }
   
-  // Recursively handle cascaded deletes
   for (const { tableName: childTable, id: childId } of toDelete) {
-    // Delete the row (this will trigger its own cascade check)
     delete db.tables[childTable].rows[childId];
-    // Recursively handle cascades for this deleted row
     handleCascadeDelete(childTable, childId, db);
   }
 }
 
-/**
- * Get all rows from a table as an array
- */
 export function getTableRows(tableName) {
   const table = getTable(tableName);
   if (!table) {
@@ -360,27 +267,20 @@ export function getTableRows(tableName) {
   return Object.values(table.rows);
 }
 
-/**
- * Check and migrate database structure if needed
- */
 function migrateDatabaseIfNeeded() {
   const db = loadDB();
   
-  // If database is empty, no migration needed
   if (Object.keys(db.tables).length === 0) {
     return;
   }
 
-  // Check if users table exists (new structure)
   if (db.tables.users) {
-    return; // Already migrated
+    return;
   }
 
-  // Old structure detected - need to migrate
   console.log('Old database structure detected. Migrating to new structure...');
   
   try {
-    // Create users table structure directly
     db.tables.users = {
       name: 'users',
       schema: {
@@ -398,9 +298,7 @@ function migrateDatabaseIfNeeded() {
       rows: {}
     };
 
-    // Migrate customers if they exist
     if (db.tables.customers) {
-      // Update customers schema to include userId
       if (!db.tables.customers.schema.columns.userId) {
         db.tables.customers.schema.columns.userId = { type: 'uuid' };
         db.tables.customers.schema.foreignKeys.userId = {
@@ -409,14 +307,11 @@ function migrateDatabaseIfNeeded() {
         };
       }
 
-      // Migrate each customer
       for (const customerId in db.tables.customers.rows) {
         const customer = db.tables.customers.rows[customerId];
         
-        // Generate user ID
         const userId = generateUUID();
         
-        // Create user from customer data
         const email = customer.email || '';
         const name = customer.name || '';
         const nameParts = name.split(' ');
@@ -431,18 +326,14 @@ function migrateDatabaseIfNeeded() {
           createdAt: customer.createdAt || new Date().toISOString()
         };
 
-        // Update customer to reference user
         db.tables.customers.rows[customerId].userId = userId;
-        // Remove old fields that are now in users
         delete db.tables.customers.rows[customerId].name;
         delete db.tables.customers.rows[customerId].email;
         delete db.tables.customers.rows[customerId].password;
       }
     }
 
-    // Migrate admins if they exist
     if (db.tables.admins) {
-      // Update admins schema to include userId
       if (!db.tables.admins.schema.columns.userId) {
         db.tables.admins.schema.columns.userId = { type: 'uuid' };
         db.tables.admins.schema.foreignKeys.userId = {
@@ -451,14 +342,11 @@ function migrateDatabaseIfNeeded() {
         };
       }
 
-      // Migrate each admin
       for (const adminId in db.tables.admins.rows) {
         const admin = db.tables.admins.rows[adminId];
         
-        // Generate user ID
         const userId = generateUUID();
         
-        // Create user from admin data
         const email = admin.email || '';
         const name = admin.name || '';
         const nameParts = name.split(' ');
@@ -473,43 +361,32 @@ function migrateDatabaseIfNeeded() {
           createdAt: admin.createdAt || new Date().toISOString()
         };
 
-        // Update admin to reference user
         db.tables.admins.rows[adminId].userId = userId;
-        // Remove old fields that are now in users
         delete db.tables.admins.rows[adminId].name;
         delete db.tables.admins.rows[adminId].email;
       }
     }
 
-    // Save migrated database
     saveDB(db);
     console.log('Database migration completed successfully');
   } catch (error) {
     console.error('Migration failed:', error);
-    // If migration fails, clear and let it reinitialize
     localStorage.removeItem('MiniDB');
   }
 }
 
-/**
- * Initialize demo database with comprehensive e-commerce store data
- */
 export function initSampleData() {
   const db = loadDB();
   
-  // Migrate if needed
   migrateDatabaseIfNeeded();
   
-  // Reload after potential migration
   const dbAfterMigration = loadDB();
   
-  // Only initialize if database is empty
   if (Object.keys(dbAfterMigration.tables).length > 0) {
     return;
   }
 
   try {
-    // Create users table (central user table - base for all users)
     createTable('users', {
       columns: {
         username: { type: 'string' },
@@ -522,7 +399,6 @@ export function initSampleData() {
       foreignKeys: {}
     });
 
-    // Create customers table (references users)
     createTable('customers', {
       columns: {
         phone: { type: 'string' },
@@ -537,7 +413,6 @@ export function initSampleData() {
       }
     });
 
-    // Create admins table (references users)
     createTable('admins', {
       columns: {
         role: { type: 'string' },
@@ -552,7 +427,6 @@ export function initSampleData() {
       }
     });
 
-    // Create categories table (for organizing products)
     createTable('categories', {
       columns: {
         name: { type: 'string' },
@@ -562,7 +436,6 @@ export function initSampleData() {
       foreignKeys: {}
     });
 
-    // Create products table
     createTable('products', {
       columns: {
         name: { type: 'string' },
@@ -582,7 +455,6 @@ export function initSampleData() {
       }
     });
 
-    // Create addresses table (for shipping/billing)
     createTable('addresses', {
       columns: {
         street: { type: 'string' },
@@ -590,7 +462,7 @@ export function initSampleData() {
         state: { type: 'string' },
         zipCode: { type: 'string' },
         country: { type: 'string' },
-        addressType: { type: 'string' }, // 'shipping' or 'billing'
+        addressType: { type: 'string' },
         customerId: { type: 'uuid' },
         createdAt: { type: 'date' }
       },
@@ -602,10 +474,9 @@ export function initSampleData() {
       }
     });
 
-    // Create carts table
     createTable('carts', {
       columns: {
-        status: { type: 'string' }, // 'active', 'abandoned', 'converted'
+        status: { type: 'string' },
         customerId: { type: 'uuid' },
         createdAt: { type: 'date' },
         updatedAt: { type: 'date' }
@@ -618,11 +489,10 @@ export function initSampleData() {
       }
     });
 
-    // Create cart_items table (junction table: carts <-> products)
     createTable('cart_items', {
       columns: {
         quantity: { type: 'number' },
-        price: { type: 'number' }, // Price at time of adding to cart
+        price: { type: 'number' },
         cartId: { type: 'uuid' },
         productId: { type: 'uuid' },
         createdAt: { type: 'date' }
@@ -639,7 +509,6 @@ export function initSampleData() {
       }
     });
 
-    // Create orders table
     createTable('orders', {
       columns: {
         orderNumber: { type: 'string' },
@@ -647,7 +516,7 @@ export function initSampleData() {
         subtotal: { type: 'number' },
         tax: { type: 'number' },
         shipping: { type: 'number' },
-        status: { type: 'string' }, // 'pending', 'processing', 'shipped', 'delivered', 'cancelled'
+        status: { type: 'string' },
         customerId: { type: 'uuid' },
         shippingAddressId: { type: 'uuid' },
         billingAddressId: { type: 'uuid' },
@@ -671,11 +540,10 @@ export function initSampleData() {
       }
     });
 
-    // Create order_items table (what was actually ordered)
     createTable('order_items', {
       columns: {
         quantity: { type: 'number' },
-        price: { type: 'number' }, // Price at time of order
+        price: { type: 'number' },
         total: { type: 'number' },
         orderId: { type: 'uuid' },
         productId: { type: 'uuid' },
@@ -693,12 +561,11 @@ export function initSampleData() {
       }
     });
 
-    // Create payments table
     createTable('payments', {
       columns: {
         amount: { type: 'number' },
-        paymentMethod: { type: 'string' }, // 'credit_card', 'paypal', 'bank_transfer'
-        status: { type: 'string' }, // 'pending', 'completed', 'failed', 'refunded'
+        paymentMethod: { type: 'string' },
+        status: { type: 'string' },
         transactionId: { type: 'string' },
         orderId: { type: 'uuid' },
         createdAt: { type: 'date' }
@@ -711,10 +578,9 @@ export function initSampleData() {
       }
     });
 
-    // Create reviews table (product reviews by customers)
     createTable('reviews', {
       columns: {
-        rating: { type: 'number' }, // 1-5
+        rating: { type: 'number' },
         title: { type: 'string' },
         comment: { type: 'string' },
         customerId: { type: 'uuid' },
@@ -738,11 +604,9 @@ export function initSampleData() {
       }
     });
 
-    // Insert sample data
     const baseDate = new Date('2024-01-15');
     const now = new Date().toISOString();
 
-    // Categories
     const catElectronics = insertRow('categories', {
       name: 'Electronics',
       description: 'Electronic devices and accessories'
@@ -760,7 +624,6 @@ export function initSampleData() {
       description: 'Books and reading materials'
     });
 
-    // Users (central user table - base for all users)
     const user1 = insertRow('users', {
       username: 'johndoe',
       email: 'john.doe@email.com',
@@ -818,7 +681,6 @@ export function initSampleData() {
       lastName: 'Staff'
     });
 
-    // Customers (reference users)
     const customer1 = insertRow('customers', {
       phone: '555-0101',
       userId: user1.id
@@ -840,7 +702,6 @@ export function initSampleData() {
       userId: user5.id
     });
 
-    // Admins (reference users)
     insertRow('admins', {
       role: 'superadmin',
       userId: user6.id
@@ -854,7 +715,6 @@ export function initSampleData() {
       userId: user8.id
     });
 
-    // Products - Electronics
     const product1 = insertRow('products', {
       name: 'MacBook Pro 16"',
       description: 'High-performance laptop with M2 Pro chip, 16GB RAM, 512GB SSD',
@@ -901,7 +761,6 @@ export function initSampleData() {
       categoryId: catElectronics.id
     });
 
-    // Products - Clothing
     const product6 = insertRow('products', {
       name: 'Cotton T-Shirt',
       description: '100% organic cotton t-shirt, available in multiple colors',
@@ -930,7 +789,6 @@ export function initSampleData() {
       categoryId: catClothing.id
     });
 
-    // Products - Home
     const product9 = insertRow('products', {
       name: 'Coffee Maker',
       description: 'Programmable coffee maker with thermal carafe',
@@ -950,7 +808,6 @@ export function initSampleData() {
       categoryId: catHome.id
     });
 
-    // Products - Books
     const product11 = insertRow('products', {
       name: 'JavaScript: The Definitive Guide',
       description: 'Comprehensive guide to JavaScript programming',
@@ -970,7 +827,6 @@ export function initSampleData() {
       categoryId: catBooks.id
     });
 
-    // Addresses
     const address1 = insertRow('addresses', {
       street: '123 Main Street',
       city: 'New York',
@@ -1017,7 +873,6 @@ export function initSampleData() {
       customerId: customer4.id
     });
 
-    // Carts
     const cart1 = insertRow('carts', {
       status: 'active',
       customerId: customer1.id
@@ -1031,7 +886,6 @@ export function initSampleData() {
       customerId: customer3.id
     });
 
-    // Cart Items
     insertRow('cart_items', {
       quantity: 1,
       price: 2499.99,
@@ -1063,7 +917,6 @@ export function initSampleData() {
       productId: product6.id
     });
 
-    // Orders
     const order1 = insertRow('orders', {
       orderNumber: 'ORD-2024-001',
       subtotal: 1059.97,
@@ -1114,7 +967,6 @@ export function initSampleData() {
       deliveredAt: new Date('2024-01-24').toISOString()
     });
 
-    // Order Items
     insertRow('order_items', {
       quantity: 1,
       price: 999.99,
@@ -1165,7 +1017,6 @@ export function initSampleData() {
       productId: product11.id
     });
 
-    // Payments
     insertRow('payments', {
       amount: 1159.77,
       paymentMethod: 'credit_card',
@@ -1195,7 +1046,6 @@ export function initSampleData() {
       orderId: order4.id
     });
 
-    // Reviews
     insertRow('reviews', {
       rating: 5,
       title: 'Excellent laptop!',
@@ -1244,39 +1094,26 @@ export function initSampleData() {
   }
 }
 
-/**
- * Export database to JSON string
- */
 export function exportDatabase() {
   const db = loadDB();
   return JSON.stringify(db, null, 2);
 }
 
-/**
- * Import database from JSON string
- * @param {string} jsonString - JSON string of database
- * @param {boolean} overwrite - If true, replaces existing data. If false, merges.
- */
 export function importDatabase(jsonString, overwrite = false) {
   try {
     const importedDb = JSON.parse(jsonString);
     
-    // Validate structure
     if (!importedDb.meta || !importedDb.tables) {
       throw new Error('Invalid database format. Expected { meta: {}, tables: {} }');
     }
 
     if (overwrite) {
-      // Replace entire database
       saveDB(importedDb);
     } else {
-      // Merge with existing database
       const currentDb = loadDB();
-      // Merge tables
       for (const tableName in importedDb.tables) {
         currentDb.tables[tableName] = importedDb.tables[tableName];
       }
-      // Update meta
       currentDb.meta = { ...currentDb.meta, ...importedDb.meta };
       saveDB(currentDb);
     }
@@ -1288,10 +1125,6 @@ export function importDatabase(jsonString, overwrite = false) {
   }
 }
 
-/**
- * Get sample/predefined dataset
- * Returns a complete database structure with sample data
- */
 export function getSampleDataset() {
   const sampleDb = {
     meta: {
@@ -1302,8 +1135,5 @@ export function getSampleDataset() {
     tables: {}
   };
 
-  // This will be populated by initSampleData, but we'll create a clean version
-  // For now, return empty - the actual sample is created by initSampleData
-  // Users can export their current database as a sample
   return sampleDb;
 }
