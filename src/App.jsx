@@ -42,6 +42,7 @@ function App() {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false); // Header actions menu
   const [tableActionsMenuOpen, setTableActionsMenuOpen] = useState(false); // Table actions menu
   const [resultsMenuOpen, setResultsMenuOpen] = useState(false); // Results actions menu
+  const [showSuggestedQueriesModal, setShowSuggestedQueriesModal] = useState(false); // Suggested queries modal for mobile
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -686,7 +687,7 @@ function App() {
       {/* Main Content - Supabase Style */}
       <div className="flex-1 flex flex-col lg:ml-64 bg-[#1e1e1e] min-w-0 overflow-hidden">
         {/* Header - Supabase Style */}
-        <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 lg:px-6 py-3 flex justify-between items-center gap-3 flex-shrink-0 overflow-hidden">
+        <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 lg:px-6 py-3 flex justify-between items-center gap-3 flex-shrink-0 relative">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Mobile menu button */}
             <button
@@ -751,7 +752,7 @@ function App() {
           </div>
           
           {/* Mobile: Dropdown menu */}
-          <div className="lg:hidden relative">
+          <div className="lg:hidden relative flex-shrink-0 z-50">
             <button
               onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
               className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-xs font-medium transition-colors"
@@ -833,7 +834,7 @@ function App() {
                 </div>
                 
                 {/* Mobile: Dropdown menu */}
-                <div className="sm:hidden relative">
+                <div className="sm:hidden relative flex-shrink-0 z-50">
                   <button
                     onClick={() => setTableActionsMenuOpen(!tableActionsMenuOpen)}
                     className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-sm font-medium transition-colors"
@@ -1115,6 +1116,13 @@ function App() {
                     SQL Editor
                   </h3>
                   <div className="flex gap-2">
+                    {/* Mobile: Show suggested queries button */}
+                    <button
+                      onClick={() => setShowSuggestedQueriesModal(true)}
+                      className="lg:hidden px-3 py-1.5 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-xs font-medium transition-colors"
+                    >
+                      📋 Queries
+                    </button>
                     <button
                       onClick={handleRunQuery}
                       className="px-3 py-1.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md text-xs font-medium transition-colors flex items-center gap-2"
@@ -1156,8 +1164,8 @@ function App() {
                 </div>
               </div>
 
-              {/* Suggested Queries - Right Side (Scrollable) */}
-              <div className="w-full lg:w-80 bg-[#1a1a1a] flex flex-col overflow-hidden flex-shrink-0">
+              {/* Suggested Queries - Right Side (Scrollable) - Desktop Only */}
+              <div className="hidden lg:flex w-80 bg-[#1a1a1a] flex-col overflow-hidden flex-shrink-0">
                 <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-2 flex-shrink-0">
                   <h3 className="text-sm font-semibold text-white">
                     Suggested Queries
@@ -1285,7 +1293,7 @@ function App() {
                     </div>
                     
                     {/* Mobile: Dropdown menu */}
-                    <div className="lg:hidden relative">
+                    <div className="lg:hidden relative flex-shrink-0 z-50">
                       <button
                         onClick={() => setResultsMenuOpen(!resultsMenuOpen)}
                         className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-xs font-medium transition-colors"
@@ -1978,6 +1986,54 @@ function App() {
             <div className="mt-6">
               <button
                 onClick={() => setShowRelationsView(false)}
+                className="w-full px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Queries Modal - Mobile Only */}
+      {showSuggestedQueriesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4 flex-shrink-0">
+              <h2 className="text-xl font-semibold text-white">
+                Suggested Queries
+              </h2>
+              <button
+                onClick={() => setShowSuggestedQueriesModal(false)}
+                className="text-[#8b8b8b] hover:text-white transition-colors text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="space-y-2">
+                {suggestedQueries.map((suggested, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setQuery(suggested.query);
+                      setShowSuggestedQueriesModal(false);
+                    }}
+                    className="w-full text-left p-3 bg-[#1e1e1e] hover:bg-[#252525] border border-[#2a2a2a] rounded-md transition-colors group"
+                  >
+                    <div className="text-xs font-medium text-[#8b8b8b] mb-1">
+                      {suggested.name}
+                    </div>
+                    <div className="text-xs font-mono text-[#e0e0e0] break-all">
+                      {suggested.query}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 flex-shrink-0">
+              <button
+                onClick={() => setShowSuggestedQueriesModal(false)}
                 className="w-full px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
                 Close
