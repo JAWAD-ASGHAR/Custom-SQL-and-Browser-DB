@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { loadDB, saveDB, initSampleData } from './database';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  loadDB, 
+  saveDB, 
+  initSampleData, 
+  getAllTables, 
+  getTable, 
+  getTableRows,
+  createTable,
+  insertRow,
+  updateRow,
+  deleteRow,
+  exportDatabase,
+  importDatabase
+} from './database';
 import { executeQuery } from './queryEngine';
 
 function App() {
-  const [db, setDb] = useState({});
+  const [db, setDb] = useState({ meta: {}, tables: {} });
   const [selectedTable, setSelectedTable] = useState(null);
   const [query, setQuery] = useState('');
   const [result, setResult] = useState(null);
@@ -13,29 +26,33 @@ function App() {
   const [newRow, setNewRow] = useState({});
   const [showAddColumn, setShowAddColumn] = useState(false);
   const [newColumnName, setNewColumnName] = useState('');
+  const [columnType, setColumnType] = useState('string');
   const [columnIsForeignKey, setColumnIsForeignKey] = useState(false);
   const [referencedTable, setReferencedTable] = useState('');
   const [showCreateRelation, setShowCreateRelation] = useState(false);
   const [relationFromTable, setRelationFromTable] = useState('');
   const [relationFromColumn, setRelationFromColumn] = useState('');
   const [relationToTable, setRelationToTable] = useState('');
+  const [onDeleteAction, setOnDeleteAction] = useState('restrict');
   const [showRelationsView, setShowRelationsView] = useState(false);
   const [editingCell, setEditingCell] = useState(null); // { rowId, column }
   const [editValue, setEditValue] = useState('');
+  const [tablesToLink, setTablesToLink] = useState([]); // Tables to link when creating new table
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     initSampleData();
     const loadedDb = loadDB();
     setDb(loadedDb);
-    const firstTable = Object.keys(loadedDb)[0];
+    const firstTable = Object.keys(loadedDb.tables)[0];
     if (firstTable) {
       setSelectedTable(firstTable);
     }
   }, []);
 
-  const handleUpdateDb = (updatedDb) => {
-    setDb(updatedDb);
-    saveDB(updatedDb);
+  const refreshDb = () => {
+    const loadedDb = loadDB();
+    setDb(loadedDb);
   };
 
   const handleRunQuery = () => {
@@ -44,12 +61,11 @@ function App() {
       return;
     }
 
-    const queryResult = executeQuery(query, db);
+    const queryResult = executeQuery(query);
     setResult(queryResult);
-
-    if (queryResult.updatedDb) {
-      handleUpdateDb(queryResult.updatedDb);
-    }
+    
+    // Refresh database after query (in case data changed)
+    refreshDb();
   };
 
   const handleCreateTable = () => {
@@ -59,26 +75,52 @@ function App() {
     }
 
     const tableName = newTableName.trim().toLowerCase();
-    if (db[tableName]) {
+    if (db.tables[tableName]) {
       alert('Table already exists');
       return;
     }
 
-    const updatedDb = { ...db, [tableName]: [] };
-    handleUpdateDb(updatedDb);
-    setSelectedTable(tableName);
-    setShowCreateTable(false);
-    setNewTableName('');
+    try {
+      // Build schema with foreign keys if any
+      const foreignKeys = {};
+      if (tablesToLink.length > 0) {
+        tablesToLink.forEach(refTable => {
+          const fkColumnName = `${refTable}_id`;
+          foreignKeys[fkColumnName] = {
+            references: `${refTable}.id`,
+            onDelete: 'restrict'
+          };
+        });
+      }
+
+      createTable(tableName, {
+        columns: {},
+        foreignKeys
+      });
+
+      refreshDb();
+      setSelectedTable(tableName);
+      setShowCreateTable(false);
+      setNewTableName('');
+      setTablesToLink([]);
+    } catch (error) {
+      alert(`Error creating table: ${error.message}`);
+    }
   };
 
   const handleDeleteTable = (tableName) => {
     if (confirm(`Delete table "${tableName}"?`)) {
-      const updatedDb = { ...db };
-      delete updatedDb[tableName];
-      handleUpdateDb(updatedDb);
-      if (selectedTable === tableName) {
-        const remaining = Object.keys(updatedDb);
-        setSelectedTable(remaining.length > 0 ? remaining[0] : null);
+      try {
+        const updatedDb = loadDB();
+        delete updatedDb.tables[tableName];
+        saveDB(updatedDb);
+        refreshDb();
+        if (selectedTable === tableName) {
+          const remaining = Object.keys(updatedDb.tables);
+          setSelectedTable(remaining.length > 0 ? remaining[0] : null);
+        }
+      } catch (error) {
+        alert(`Error deleting table: ${error.message}`);
       }
     }
   };
@@ -89,32 +131,61 @@ function App() {
   };
 
   const handleConfirmAddColumn = () => {
-    if (!newColumnName.trim()) {
+    if (!newColumnName.trim() && !columnIsForeignKey) {
       alert('Please enter a column name');
       return;
     }
 
-    const colName = columnIsForeignKey && referencedTable 
-      ? `${referencedTable}_id` 
-      : newColumnName.trim();
+    try {
+      const table = getTable(relationFromTable);
+      if (!table) {
+        alert('Table not found');
+        return;
+      }
 
-    if (columnIsForeignKey && !referencedTable) {
-      alert('Please select a table to reference');
-      return;
+      const colName = columnIsForeignKey && referencedTable 
+        ? `${referencedTable}_id` 
+        : newColumnName.trim();
+
+      if (columnIsForeignKey && !referencedTable) {
+        alert('Please select a table to reference');
+        return;
+      }
+
+      // Add column to schema
+      const updatedDb = loadDB();
+      const tableObj = updatedDb.tables[relationFromTable];
+      
+      // Add column to schema
+      tableObj.schema.columns[colName] = { type: columnType };
+      
+      // If it's a foreign key, add to foreignKeys
+      if (columnIsForeignKey) {
+        tableObj.schema.foreignKeys[colName] = {
+          references: `${referencedTable}.id`,
+          onDelete: 'restrict'
+        };
+      }
+
+      // Update existing rows to have the new column (set to null)
+      for (const rowId in tableObj.rows) {
+        if (!(colName in tableObj.rows[rowId])) {
+          tableObj.rows[rowId][colName] = null;
+        }
+      }
+
+      saveDB(updatedDb);
+      refreshDb();
+      
+      // Reset form
+      setNewColumnName('');
+      setColumnType('string');
+      setColumnIsForeignKey(false);
+      setReferencedTable('');
+      setShowAddColumn(false);
+    } catch (error) {
+      alert(`Error adding column: ${error.message}`);
     }
-
-    const updatedDb = { ...db };
-    updatedDb[relationFromTable] = updatedDb[relationFromTable].map(row => ({
-      ...row,
-      [colName]: ''
-    }));
-    handleUpdateDb(updatedDb);
-    
-    // Reset form
-    setNewColumnName('');
-    setColumnIsForeignKey(false);
-    setReferencedTable('');
-    setShowAddColumn(false);
   };
 
   const handleCreateRelation = () => {
@@ -123,34 +194,44 @@ function App() {
       return;
     }
 
-    // Check if column already exists
-    const fromTableData = db[relationFromTable] || [];
-    const existingColumns = fromTableData.length > 0 
-      ? Object.keys(fromTableData[0]) 
-      : ['id'];
-    
-    const fkColumnName = `${relationToTable}_id`;
-    
-    if (!existingColumns.includes(fkColumnName)) {
-      // Add the foreign key column
-      const updatedDb = { ...db };
-      if (updatedDb[relationFromTable].length > 0) {
-        updatedDb[relationFromTable] = updatedDb[relationFromTable].map(row => ({
-          ...row,
-          [fkColumnName]: ''
-        }));
-      } else {
-        // Table is empty, just ensure it exists
-        updatedDb[relationFromTable] = [];
+    try {
+      const updatedDb = loadDB();
+      const tableObj = updatedDb.tables[relationFromTable];
+      
+      const fkColumnName = relationFromColumn || `${relationToTable}_id`;
+      
+      // Check if column already exists
+      if (tableObj.schema.columns[fkColumnName]) {
+        alert(`Column "${fkColumnName}" already exists`);
+        return;
       }
-      handleUpdateDb(updatedDb);
-    }
 
-    // Reset form
-    setRelationFromTable('');
-    setRelationFromColumn('');
-    setRelationToTable('');
-    setShowCreateRelation(false);
+      // Add column to schema
+      tableObj.schema.columns[fkColumnName] = { type: 'uuid' };
+      
+      // Add foreign key
+      tableObj.schema.foreignKeys[fkColumnName] = {
+        references: `${relationToTable}.id`,
+        onDelete: onDeleteAction
+      };
+
+      // Update existing rows
+      for (const rowId in tableObj.rows) {
+        tableObj.rows[rowId][fkColumnName] = null;
+      }
+
+      saveDB(updatedDb);
+      refreshDb();
+
+      // Reset form
+      setRelationFromTable('');
+      setRelationFromColumn('');
+      setRelationToTable('');
+      setOnDeleteAction('restrict');
+      setShowCreateRelation(false);
+    } catch (error) {
+      alert(`Error creating relation: ${error.message}`);
+    }
   };
 
   const handleDeleteColumn = (tableName, colName) => {
@@ -159,48 +240,59 @@ function App() {
       return;
     }
     if (confirm(`Delete column "${colName}"?`)) {
-      const updatedDb = { ...db };
-      updatedDb[tableName] = updatedDb[tableName].map(row => {
-        const newRow = { ...row };
-        delete newRow[colName];
-        return newRow;
-      });
-      handleUpdateDb(updatedDb);
+      try {
+        const updatedDb = loadDB();
+        const tableObj = updatedDb.tables[tableName];
+        
+        // Remove from schema
+        delete tableObj.schema.columns[colName];
+        delete tableObj.schema.foreignKeys[colName];
+        
+        // Remove from all rows
+        for (const rowId in tableObj.rows) {
+          delete tableObj.rows[rowId][colName];
+        }
+
+        saveDB(updatedDb);
+        refreshDb();
+      } catch (error) {
+        alert(`Error deleting column: ${error.message}`);
+      }
     }
   };
 
   const handleAddRow = () => {
     if (!selectedTable) return;
 
-    const table = db[selectedTable] || [];
-    const maxId = table.length > 0 ? Math.max(...table.map(r => r.id || 0)) : 0;
-    
-    // Ensure id is set
-    const rowToAdd = { ...newRow, id: maxId + 1 };
-    
-    // If table is empty, use the columns from newRow, otherwise ensure all columns exist
-    const updatedDb = { ...db };
-    if (!updatedDb[selectedTable]) {
-      updatedDb[selectedTable] = [];
+    try {
+      // Prepare data (exclude id, it will be auto-generated)
+      const data = { ...newRow };
+      delete data.id;
+
+      insertRow(selectedTable, data);
+      refreshDb();
+      setNewRow({});
+      setShowAddRow(false);
+    } catch (error) {
+      alert(`Error adding row: ${error.message}`);
     }
-    
-    updatedDb[selectedTable] = [...updatedDb[selectedTable], rowToAdd];
-    handleUpdateDb(updatedDb);
-    setNewRow({});
-    setShowAddRow(false);
   };
 
   const handleDeleteRow = (tableName, rowId) => {
     if (confirm('Delete this row?')) {
-      const updatedDb = { ...db };
-      updatedDb[tableName] = updatedDb[tableName].filter(row => row.id !== rowId);
-      handleUpdateDb(updatedDb);
+      try {
+        deleteRow(tableName, rowId);
+        refreshDb();
+      } catch (error) {
+        alert(`Error deleting row: ${error.message}`);
+      }
     }
   };
 
   const handleCellDoubleClick = (rowId, column) => {
     if (column === 'id') return; // Don't allow editing ID column
-    const row = currentTable.find(r => r.id === rowId);
+    const rows = getTableRows(selectedTable);
+    const row = rows.find(r => r.id === rowId);
     if (row) {
       setEditingCell({ rowId, column });
       setEditValue(String(row[column] || ''));
@@ -208,28 +300,27 @@ function App() {
   };
 
   const handleCellSave = (tableName, rowId, column) => {
-    const updatedDb = { ...db };
-    const rowIndex = updatedDb[tableName].findIndex(r => r.id === rowId);
-    
-    if (rowIndex !== -1) {
-      // Try to parse as number if it looks like a number
+    try {
       let value = editValue.trim();
+      
+      // Try to parse as number if it looks like a number
       const numValue = value !== '' && !isNaN(value) && !isNaN(parseFloat(value)) 
         ? Number(value) 
         : value;
       
-      // If it's a foreign key column, ensure it's a number
-      if (isForeignKey(column) && value !== '') {
-        updatedDb[tableName][rowIndex][column] = Number(value) || '';
-      } else {
-        updatedDb[tableName][rowIndex][column] = numValue;
-      }
+      // For foreign keys, keep as string (UUID)
+      const isFK = isForeignKey(column);
+      const finalValue = isFK && value !== '' ? value : (value === '' ? null : numValue);
       
-      handleUpdateDb(updatedDb);
+      updateRow(tableName, rowId, { [column]: finalValue });
+      refreshDb();
+      setEditingCell(null);
+      setEditValue('');
+    } catch (error) {
+      alert(`Error updating cell: ${error.message}`);
+      setEditingCell(null);
+      setEditValue('');
     }
-    
-    setEditingCell(null);
-    setEditValue('');
   };
 
   const handleCellCancel = () => {
@@ -237,58 +328,185 @@ function App() {
     setEditValue('');
   };
 
-  // Helper: Check if a column is a foreign key (ends with _id and references another table)
+  // Helper: Check if a column is a foreign key
   const isForeignKey = (columnName) => {
-    if (columnName === 'id') return false; // Primary key, not foreign key
-    if (columnName.endsWith('_id')) {
-      const referencedTable = columnName.replace('_id', '');
-      return db[referencedTable] !== undefined;
-    }
-    return false;
+    if (columnName === 'id') return false;
+    if (!selectedTable) return false;
+    const table = getTable(selectedTable);
+    if (!table) return false;
+    return columnName in table.schema.foreignKeys;
   };
 
   // Helper: Get the referenced table name for a foreign key
   const getReferencedTable = (columnName) => {
-    if (columnName.endsWith('_id')) {
-      return columnName.replace('_id', '');
-    }
-    return null;
+    if (!selectedTable) return null;
+    const table = getTable(selectedTable);
+    if (!table) return null;
+    const fk = table.schema.foreignKeys[columnName];
+    if (!fk) return null;
+    const [refTable] = fk.references.split('.');
+    return refTable;
+  };
+
+  // Helper: Get display text for foreign key (shows name instead of just ID)
+  const getForeignKeyDisplay = (columnName, rowValue) => {
+    if (!isForeignKey(columnName) || !rowValue) return String(rowValue || '');
+    
+    const refTable = getReferencedTable(columnName);
+    if (!refTable) return String(rowValue);
+    
+    const refRows = getTableRows(refTable);
+    const refRow = refRows.find(r => r.id === rowValue);
+    if (!refRow) return String(rowValue);
+    
+    // Try to find a "name" field, or use first meaningful string field
+    const name = refRow.name || refRow.title || Object.values(refRow).find(v => 
+      typeof v === 'string' && v.length < 50 && v !== String(rowValue) && v !== refRow.id
+    ) || `ID ${rowValue}`;
+    
+    return name;
   };
 
   // Helper: Get all relations in the database
   const getAllRelations = () => {
     const relations = [];
-    Object.keys(db).forEach(tableName => {
-      const tableData = db[tableName] || [];
-      if (tableData.length > 0) {
-        const columns = Object.keys(tableData[0]);
-        columns.forEach(col => {
-          if (isForeignKey(col)) {
-            relations.push({
-              fromTable: tableName,
-              fromColumn: col,
-              toTable: getReferencedTable(col)
-            });
-          }
+    const tables = getAllTables();
+    
+    for (const tableName in tables) {
+      const table = tables[tableName];
+      for (const fkColumn in table.schema.foreignKeys) {
+        const fk = table.schema.foreignKeys[fkColumn];
+        const [refTable] = fk.references.split('.');
+        relations.push({
+          fromTable: tableName,
+          fromColumn: fkColumn,
+          toTable: refTable,
+          onDelete: fk.onDelete
         });
       }
-    });
+    }
     return relations;
   };
 
-  const currentTable = selectedTable ? db[selectedTable] : [];
-  // Get columns from first row, or default to ['id'] if table is empty
-  const tableColumns = currentTable.length > 0 
-    ? Object.keys(currentTable[0]) 
-    : (selectedTable ? ['id'] : []);
+  // Get current table rows as array
+  const currentTable = selectedTable ? getTableRows(selectedTable) : [];
+  
+  // Get columns from schema
+  const tableColumns = selectedTable && getTable(selectedTable)
+    ? Object.keys(getTable(selectedTable).schema.columns)
+    : [];
+
+  // Get all table names for UI
+  const tableNames = Object.keys(db.tables || {});
+
+  // Handle export/download
+  const handleExport = () => {
+    try {
+      const jsonData = exportDatabase();
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `minidb-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('Database exported successfully!');
+    } catch (error) {
+      alert(`Error exporting database: ${error.message}`);
+    }
+  };
+
+  // Handle import
+  const handleImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const jsonString = e.target.result;
+        const overwrite = confirm(
+          'Import database?\n\n' +
+          'OK = Replace all existing data\n' +
+          'Cancel = Merge with existing data'
+        );
+        
+        importDatabase(jsonString, overwrite);
+        refreshDb();
+        alert('Database imported successfully!');
+      } catch (error) {
+        alert(`Error importing database: ${error.message}`);
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    event.target.value = '';
+  };
+
+  // Handle download sample dataset
+  const handleDownloadSample = async () => {
+    try {
+      // Create a fresh database with sample data
+      // Save current database temporarily
+      const currentDb = loadDB();
+      const currentDbString = JSON.stringify(currentDb);
+      
+      // Clear and initialize sample data
+      localStorage.removeItem('MiniDB');
+      initSampleData();
+      const sampleDb = loadDB();
+      
+      // Export the sample
+      const jsonData = JSON.stringify(sampleDb, null, 2);
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'minidb-sample-dataset.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Restore original database
+      localStorage.setItem('MiniDB', currentDbString);
+      refreshDb();
+      
+      alert('Sample dataset downloaded! You can import it to restore the demo database.');
+    } catch (error) {
+      alert(`Error generating sample dataset: ${error.message}`);
+      // Try to restore on error
+      try {
+        const currentDb = loadDB();
+        if (Object.keys(currentDb.tables).length === 0) {
+          // Database was cleared, try to restore from backup if available
+          refreshDb();
+        }
+      } catch (e) {
+        console.error('Error restoring database:', e);
+      }
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* Hidden file input for import */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImport}
+        accept=".json"
+        style={{ display: 'none' }}
+      />
+
       {/* Sidebar - Fixed */}
       <div className="w-64 bg-gray-800 text-white flex flex-col fixed left-0 top-0 bottom-0 overflow-y-auto">
         <div className="p-4 border-b border-gray-700">
-          <h1 className="text-xl font-bold">SimpleDB</h1>
-          <p className="text-sm text-gray-400">Custom Database</p>
+          <h1 className="text-xl font-bold">MiniDB</h1>
+          <p className="text-sm text-gray-400">Browser Database</p>
         </div>
 
         <div className="p-4">
@@ -306,34 +524,38 @@ function App() {
           </button>
 
           <div className="space-y-1">
-            {Object.keys(db).map(tableName => (
-              <div
-                key={tableName}
-                className={`p-2 rounded cursor-pointer flex justify-between items-center ${
-                  selectedTable === tableName ? 'bg-blue-600' : 'hover:bg-gray-700'
-                }`}
-                onClick={() => setSelectedTable(tableName)}
-              >
-                <span>{tableName} ({db[tableName].length})</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteTable(tableName);
-                  }}
-                  className="text-red-400 hover:text-red-300"
+            {tableNames.map(tableName => {
+              const table = getTable(tableName);
+              const rowCount = table ? Object.keys(table.rows).length : 0;
+              return (
+                <div
+                  key={tableName}
+                  className={`p-2 rounded cursor-pointer flex justify-between items-center ${
+                    selectedTable === tableName ? 'bg-blue-600' : 'hover:bg-gray-700'
+                  }`}
+                  onClick={() => setSelectedTable(tableName)}
                 >
-                  ×
-                </button>
-              </div>
-            ))}
+                  <span>{tableName} ({rowCount})</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTable(tableName);
+                    }}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col ml-64">
-        {/* Tabs */}
-        <div className="bg-white border-b">
+        {/* Header with Import/Export buttons */}
+        <div className="bg-white border-b px-6 py-3 flex justify-between items-center">
           <div className="flex">
             <button
               className={`px-6 py-3 font-semibold ${
@@ -342,7 +564,7 @@ function App() {
                   : 'text-gray-600 hover:text-gray-800'
               }`}
               onClick={() => {
-                const firstTable = Object.keys(db)[0];
+                const firstTable = tableNames[0];
                 setSelectedTable(firstTable || null);
               }}
             >
@@ -357,6 +579,31 @@ function App() {
               onClick={() => setSelectedTable(null)}
             >
               Query Console
+            </button>
+          </div>
+          
+          {/* Import/Export buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleDownloadSample}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+              title="Download sample dataset"
+            >
+              📥 Download Sample
+            </button>
+            <button
+              onClick={handleExport}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              title="Export current database"
+            >
+              💾 Export
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+              title="Import database from file"
+            >
+              📤 Import
             </button>
           </div>
         </div>
@@ -396,7 +643,7 @@ function App() {
               {currentTable.length === 0 ? (
                 <div>
                   <p className="text-gray-500 mb-4">No rows in this table. Add a row to get started!</p>
-                  <p className="text-sm text-gray-400">Note: The 'id' column is automatically added as the primary key.</p>
+                  <p className="text-sm text-gray-400">Note: The 'id' column is automatically added as the primary key (UUID).</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -441,12 +688,12 @@ function App() {
                     </thead>
                     <tbody>
                       {currentTable.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
+                        <tr key={row.id || idx} className="hover:bg-gray-50">
                           {tableColumns.map(col => {
                             const isEditing = editingCell?.rowId === row.id && editingCell?.column === col;
                             const isFK = isForeignKey(col);
                             const refTable = getReferencedTable(col);
-                            const refTableData = refTable ? (db[refTable] || []) : [];
+                            const refTableData = refTable ? getTableRows(refTable) : [];
                             
                             return (
                               <td 
@@ -479,7 +726,7 @@ function App() {
                                       <option value="">Select {refTable}...</option>
                                       {refTableData.map(refRow => (
                                         <option key={refRow.id} value={refRow.id}>
-                                          {refRow.id} - {refRow.name || JSON.stringify(refRow).substring(0, 30)}
+                                          {refRow.id.substring(0, 8)}... - {getForeignKeyDisplay(col, refRow.id)}
                                         </option>
                                       ))}
                                     </select>
@@ -501,9 +748,20 @@ function App() {
                                     />
                                   )
                                 ) : (
-                                  <span className={col === 'id' ? 'font-semibold text-gray-700' : ''}>
-                                    {String(row[col] || '')}
-                                  </span>
+                                  isFK ? (
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-blue-600 font-medium">
+                                        {getForeignKeyDisplay(col, row[col])}
+                                      </span>
+                                      {row[col] && (
+                                        <span className="text-xs text-gray-400">({row[col].substring(0, 8)}...)</span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className={col === 'id' ? 'font-semibold text-gray-700' : ''}>
+                                      {col === 'id' ? row[col].substring(0, 8) + '...' : String(row[col] || '')}
+                                    </span>
+                                  )
                                 )}
                               </td>
                             );
@@ -536,7 +794,7 @@ function App() {
                     <textarea
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Enter query... (e.g., GET students WHERE age > 20)"
+                      placeholder="Enter query... (e.g., SELECT * FROM customers WHERE name = 'John')"
                       className="w-full h-full p-3 border rounded font-mono resize-none"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -569,35 +827,29 @@ function App() {
               <div className="w-80 bg-white rounded-lg shadow p-6 overflow-y-auto">
                 <h3 className="font-semibold mb-4 text-lg">Query Examples:</h3>
                 <div className="space-y-2 text-sm font-mono">
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('GET students')}>
-                    GET students
+                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SELECT * FROM customers')}>
+                    SELECT * FROM customers
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('GET students WHERE age > 20')}>
-                    GET students WHERE age &gt; 20
+                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SELECT name, email FROM customers')}>
+                    SELECT name, email FROM customers
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('ADD students { "name": "John", "age": 22 }')}>
-                    ADD students {'{'} "name": "John", "age": 22 {'}'}
+                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SELECT * FROM customers WHERE name = "John Doe"')}>
+                    SELECT * FROM customers WHERE name = "John Doe"
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('REMOVE students WHERE id = 1')}>
-                    REMOVE students WHERE id = 1
+                  <div className="p-2 bg-blue-50 rounded hover:bg-blue-100 cursor-pointer border border-blue-200" onClick={() => setQuery('JOIN carts customers ON carts.customerId = customers.id')}>
+                    JOIN carts customers ON carts.customerId = customers.id
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('UPDATE students SET age = 25 WHERE id = 2')}>
-                    UPDATE students SET age = 25 WHERE id = 2
+                  <div className="p-2 bg-blue-50 rounded hover:bg-blue-100 cursor-pointer border border-blue-200" onClick={() => setQuery('JOIN cart_items products ON cart_items.productId = products.id')}>
+                    JOIN cart_items products ON cart_items.productId = products.id
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('UNION students courses')}>
-                    UNION students courses
+                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('UNION customers admins')}>
+                    UNION customers admins
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('INTERSECT students courses')}>
-                    INTERSECT students courses
+                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('INTERSECT customers admins')}>
+                    INTERSECT customers admins
                   </div>
-                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('DIFF students courses')}>
-                    DIFF students courses
-                  </div>
-                  <div className="p-2 bg-blue-50 rounded hover:bg-blue-100 cursor-pointer border border-blue-200" onClick={() => setQuery('JOIN enrollments students ON enrollments.student_id = students.id')}>
-                    JOIN enrollments students ON enrollments.student_id = students.id
-                  </div>
-                  <div className="p-2 bg-blue-50 rounded hover:bg-blue-100 cursor-pointer border border-blue-200" onClick={() => setQuery('JOIN enrollments courses ON enrollments.course_id = courses.id')}>
-                    JOIN enrollments courses ON enrollments.course_id = courses.id
+                  <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('DIFF customers admins')}>
+                    DIFF customers admins
                   </div>
                   <div className="p-2 bg-gray-50 rounded hover:bg-gray-100 cursor-pointer" onClick={() => setQuery('SHOW TABLES')}>
                     SHOW TABLES
@@ -614,19 +866,6 @@ function App() {
               ) : result.error ? (
                 <div className="bg-red-50 border border-red-200 rounded p-4">
                   <p className="text-red-800">Error: {result.error}</p>
-                </div>
-              ) : result.affectedRows !== undefined ? (
-                <div className="bg-green-50 border border-green-200 rounded p-4">
-                  <p className="text-green-800">
-                    Success! {result.affectedRows} row(s) affected
-                  </p>
-                  {result.data && result.data.length > 0 && (
-                    <div className="mt-4">
-                      <pre className="bg-white p-4 rounded overflow-auto">
-                        {JSON.stringify(result.data, null, 2)}
-                      </pre>
-                    </div>
-                  )}
                 </div>
               ) : result.data && result.data.length > 0 ? (
                 <div>
@@ -677,9 +916,41 @@ function App() {
                   value={newTableName}
                   onChange={(e) => setNewTableName(e.target.value)}
                   className="w-full p-2 border rounded"
-                  placeholder="e.g., students"
+                  placeholder="e.g., products"
                 />
               </div>
+              
+              {/* Link to Other Tables Section */}
+              {tableNames.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Link to Other Tables (Optional)
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border p-2 rounded bg-gray-50">
+                    {tableNames.map(tableName => (
+                      <label key={tableName} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-100 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={tablesToLink.includes(tableName)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTablesToLink([...tablesToLink, tableName]);
+                            } else {
+                              setTablesToLink(tablesToLink.filter(t => t !== tableName));
+                            }
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm flex-1">{tableName}</span>
+                        <span className="text-xs text-gray-500">({tableName}_id)</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selected tables will create foreign key columns that link to them
+                  </p>
+                </div>
+              )}
             </div>
             <div className="mt-6 flex gap-2">
               <button
@@ -692,6 +963,7 @@ function App() {
                 onClick={() => {
                   setShowCreateTable(false);
                   setNewTableName('');
+                  setTablesToLink([]);
                 }}
                 className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
@@ -710,13 +982,17 @@ function App() {
             <div className="space-y-4">
               {tableColumns.length === 1 && tableColumns[0] === 'id' ? (
                 <p className="text-gray-500 text-sm">
-                  Table is empty. Add a column first, or add a row with JSON format in Query Console.
+                  Table has no columns. Add a column first.
                 </p>
               ) : (
                 tableColumns.filter(col => col !== 'id').map(col => {
                   const isFK = isForeignKey(col);
                   const refTable = getReferencedTable(col);
-                  const refTableData = refTable ? (db[refTable] || []) : [];
+                  const refTableData = refTable ? getTableRows(refTable) : [];
+                  const table = getTable(selectedTable);
+                  const column = table?.schema.columns[col];
+                  const isDateColumn = column?.type === 'date';
+                  const isCreatedAt = col === 'createdAt' && isDateColumn;
                   
                   return (
                     <div key={col}>
@@ -727,21 +1003,29 @@ function App() {
                             🔗
                           </span>
                         )}
+                        {isCreatedAt && (
+                          <span className="text-green-600 text-xs ml-2" title="Auto-set to current date/time">
+                            ⏰ (auto)
+                          </span>
+                        )}
                       </label>
+                      {isCreatedAt && (
+                        <p className="text-xs text-gray-500 mb-1">
+                          Leave empty to auto-set to current date/time
+                        </p>
+                      )}
                       {isFK && refTableData.length > 0 ? (
                         <select
                           value={newRow[col] || ''}
                           onChange={(e) => {
-                            const value = e.target.value;
-                            const numValue = value !== '' ? Number(value) : '';
-                            setNewRow({ ...newRow, [col]: numValue });
+                            setNewRow({ ...newRow, [col]: e.target.value || null });
                           }}
                           className="w-full p-2 border rounded"
                         >
                           <option value="">Select {refTable}...</option>
                           {refTableData.map(row => (
                             <option key={row.id} value={row.id}>
-                              {row.id} - {row.name || JSON.stringify(row).substring(0, 30)}
+                              {row.id.substring(0, 8)}... - {getForeignKeyDisplay(col, row.id)}
                             </option>
                           ))}
                         </select>
@@ -753,7 +1037,7 @@ function App() {
                             const value = e.target.value;
                             // Try to parse as number if it looks like a number
                             const numValue = value.trim() !== '' && !isNaN(value) ? Number(value) : value;
-                            setNewRow({ ...newRow, [col]: numValue });
+                            setNewRow({ ...newRow, [col]: numValue || null });
                           }}
                           className="w-full p-2 border rounded"
                           placeholder={isFK ? `Enter ${refTable} ID` : `Enter ${col}`}
@@ -808,6 +1092,20 @@ function App() {
                 )}
               </div>
               <div>
+                <label className="block text-sm font-medium mb-1">Column Type</label>
+                <select
+                  value={columnType}
+                  onChange={(e) => setColumnType(e.target.value)}
+                  className="w-full p-2 border rounded"
+                  disabled={columnIsForeignKey}
+                >
+                  <option value="string">String</option>
+                  <option value="number">Number</option>
+                  <option value="date">Date</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+              </div>
+              <div>
                 <label className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -832,7 +1130,7 @@ function App() {
                     className="w-full p-2 border rounded"
                   >
                     <option value="">Select a table...</option>
-                    {Object.keys(db)
+                    {tableNames
                       .filter(t => t !== relationFromTable)
                       .map(tableName => (
                         <option key={tableName} value={tableName}>
@@ -857,6 +1155,7 @@ function App() {
                 onClick={() => {
                   setShowAddColumn(false);
                   setNewColumnName('');
+                  setColumnType('string');
                   setColumnIsForeignKey(false);
                   setReferencedTable('');
                 }}
@@ -875,15 +1174,6 @@ function App() {
           <div className="bg-white rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-4">Create Relation (Foreign Key)</h2>
             <div className="space-y-4 mb-4">
-              <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
-                <p className="font-semibold mb-2">Step-by-step guide:</p>
-                <ol className="list-decimal list-inside space-y-1 text-gray-700">
-                  <li>Select the table that will have the foreign key</li>
-                  <li>Select which column to use (or create new)</li>
-                  <li>Select the table to reference</li>
-                </ol>
-              </div>
-              
               <div>
                 <label className="block text-sm font-medium mb-1">From Table (has foreign key)</label>
                 <select
@@ -895,7 +1185,7 @@ function App() {
                   className="w-full p-2 border rounded"
                 >
                   <option value="">Select table...</option>
-                  {Object.keys(db).map(tableName => (
+                  {tableNames.map(tableName => (
                     <option key={tableName} value={tableName}>
                       {tableName}
                     </option>
@@ -905,32 +1195,14 @@ function App() {
 
               {relationFromTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Column (or create new)</label>
-                  <select
+                  <label className="block text-sm font-medium mb-1">Column Name (or leave empty for auto)</label>
+                  <input
+                    type="text"
                     value={relationFromColumn}
                     onChange={(e) => setRelationFromColumn(e.target.value)}
+                    placeholder={`Will be: ${relationToTable || 'tablename'}_id`}
                     className="w-full p-2 border rounded"
-                  >
-                    <option value="">Create new column...</option>
-                    {(() => {
-                      const tableData = db[relationFromTable] || [];
-                      const columns = tableData.length > 0 ? Object.keys(tableData[0]) : ['id'];
-                      return columns
-                        .filter(col => col !== 'id' && !col.endsWith('_id'))
-                        .map(col => (
-                          <option key={col} value={col}>{col}</option>
-                        ));
-                    })()}
-                  </select>
-                  {relationFromColumn === '' && (
-                    <input
-                      type="text"
-                      value={relationFromColumn}
-                      onChange={(e) => setRelationFromColumn(e.target.value)}
-                      placeholder="New column name (will become: tablename_id)"
-                      className="w-full p-2 border rounded mt-2"
-                    />
-                  )}
+                  />
                 </div>
               )}
 
@@ -943,7 +1215,7 @@ function App() {
                     className="w-full p-2 border rounded"
                   >
                     <option value="">Select table to reference...</option>
-                    {Object.keys(db)
+                    {tableNames
                       .filter(t => t !== relationFromTable)
                       .map(tableName => (
                         <option key={tableName} value={tableName}>
@@ -951,9 +1223,21 @@ function App() {
                         </option>
                       ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    This will create a foreign key that references the <strong>id</strong> column
-                  </p>
+                </div>
+              )}
+
+              {relationFromTable && relationToTable && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">On Delete Action</label>
+                  <select
+                    value={onDeleteAction}
+                    onChange={(e) => setOnDeleteAction(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="restrict">Restrict (prevent deletion)</option>
+                    <option value="cascade">Cascade (delete related rows)</option>
+                    <option value="set-null">Set Null (set FK to null)</option>
+                  </select>
                 </div>
               )}
 
@@ -961,7 +1245,10 @@ function App() {
                 <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
                   <p className="font-semibold text-green-800">Relation Summary:</p>
                   <p className="text-green-700 mt-1">
-                    <strong>{relationFromTable}</strong> will have a column <strong>{relationToTable}_id</strong> that references <strong>{relationToTable}.id</strong>
+                    <strong>{relationFromTable}</strong> will have a column <strong>{relationFromColumn || `${relationToTable}_id`}</strong> that references <strong>{relationToTable}.id</strong>
+                  </p>
+                  <p className="text-green-700 mt-1 text-xs">
+                    On delete: <strong>{onDeleteAction}</strong>
                   </p>
                 </div>
               )}
@@ -980,6 +1267,7 @@ function App() {
                   setRelationFromTable('');
                   setRelationFromColumn('');
                   setRelationToTable('');
+                  setOnDeleteAction('restrict');
                 }}
                 className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
               >
@@ -1016,7 +1304,7 @@ function App() {
                 <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm mb-4">
                   <p className="font-semibold text-blue-800">How Relations Work:</p>
                   <p className="text-blue-700 mt-1">
-                    A foreign key column stores the <strong>id</strong> of a row from another table, creating a link between tables.
+                    A foreign key column stores the <strong>id</strong> (UUID) of a row from another table, creating a link between tables.
                   </p>
                 </div>
                 
@@ -1032,6 +1320,9 @@ function App() {
                           <div className="text-sm text-gray-600">
                             → references → <strong>{rel.toTable}.id</strong>
                           </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            On delete: <strong>{rel.onDelete}</strong>
+                          </div>
                         </div>
                         <button
                           onClick={() => {
@@ -1043,20 +1334,8 @@ function App() {
                           View Table
                         </button>
                       </div>
-                      <div className="text-xs text-gray-500 mt-2">
-                        This means: Each row in <strong>{rel.fromTable}</strong> can reference one row in <strong>{rel.toTable}</strong> by storing its ID.
-                      </div>
                     </div>
                   ))}
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <h3 className="font-semibold mb-2">Quick Tips:</h3>
-                  <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-                    <li>Use JOIN queries to combine related data from multiple tables</li>
-                    <li>When adding rows, foreign key columns show dropdowns with available IDs</li>
-                    <li>Foreign keys are automatically detected (columns ending with "_id")</li>
-                  </ul>
                 </div>
               </div>
             )}
