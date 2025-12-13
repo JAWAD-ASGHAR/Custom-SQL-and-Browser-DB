@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   loadDB,
   saveDB,
-  initSampleData,
   getAllTables,
   getTable,
   getTableRows,
@@ -12,6 +11,7 @@ import {
   deleteRow,
   exportDatabase,
   importDatabase,
+  getSampleDataset,
 } from "./database";
 import { executeQuery } from "./queryEngine";
 import Sidebar from "./components/Sidebar";
@@ -57,7 +57,6 @@ function App() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    initSampleData();
     const loadedDb = loadDB();
     setDb(loadedDb);
     const firstTable = Object.keys(loadedDb.tables)[0];
@@ -457,13 +456,7 @@ function App() {
 
   const handleDownloadSample = async () => {
     try {
-      const currentDb = loadDB();
-      const currentDbString = JSON.stringify(currentDb);
-
-      localStorage.removeItem("MiniDB");
-      initSampleData();
-      const sampleDb = loadDB();
-
+      const sampleDb = getSampleDataset();
       const jsonData = JSON.stringify(sampleDb, null, 2);
       const blob = new Blob([jsonData], { type: "application/json" });
       const url = URL.createObjectURL(blob);
