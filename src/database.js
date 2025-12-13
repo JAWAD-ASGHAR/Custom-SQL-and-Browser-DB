@@ -361,38 +361,195 @@ export function getTableRows(tableName) {
 }
 
 /**
+ * Check and migrate database structure if needed
+ */
+function migrateDatabaseIfNeeded() {
+  const db = loadDB();
+  
+  // If database is empty, no migration needed
+  if (Object.keys(db.tables).length === 0) {
+    return;
+  }
+
+  // Check if users table exists (new structure)
+  if (db.tables.users) {
+    return; // Already migrated
+  }
+
+  // Old structure detected - need to migrate
+  console.log('Old database structure detected. Migrating to new structure...');
+  
+  try {
+    // Create users table structure directly
+    db.tables.users = {
+      name: 'users',
+      schema: {
+        columns: {
+          id: { type: 'uuid', primary: true },
+          username: { type: 'string' },
+          email: { type: 'string' },
+          password: { type: 'string' },
+          firstName: { type: 'string' },
+          lastName: { type: 'string' },
+          createdAt: { type: 'date' }
+        },
+        foreignKeys: {}
+      },
+      rows: {}
+    };
+
+    // Migrate customers if they exist
+    if (db.tables.customers) {
+      // Update customers schema to include userId
+      if (!db.tables.customers.schema.columns.userId) {
+        db.tables.customers.schema.columns.userId = { type: 'uuid' };
+        db.tables.customers.schema.foreignKeys.userId = {
+          references: 'users.id',
+          onDelete: 'cascade'
+        };
+      }
+
+      // Migrate each customer
+      for (const customerId in db.tables.customers.rows) {
+        const customer = db.tables.customers.rows[customerId];
+        
+        // Generate user ID
+        const userId = generateUUID();
+        
+        // Create user from customer data
+        const email = customer.email || '';
+        const name = customer.name || '';
+        const nameParts = name.split(' ');
+        
+        db.tables.users.rows[userId] = {
+          id: userId,
+          username: email ? email.split('@')[0] : (name ? name.toLowerCase().replace(/\s+/g, '') : `user_${customerId}`),
+          email: email,
+          password: customer.password || '',
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          createdAt: customer.createdAt || new Date().toISOString()
+        };
+
+        // Update customer to reference user
+        db.tables.customers.rows[customerId].userId = userId;
+        // Remove old fields that are now in users
+        delete db.tables.customers.rows[customerId].name;
+        delete db.tables.customers.rows[customerId].email;
+        delete db.tables.customers.rows[customerId].password;
+      }
+    }
+
+    // Migrate admins if they exist
+    if (db.tables.admins) {
+      // Update admins schema to include userId
+      if (!db.tables.admins.schema.columns.userId) {
+        db.tables.admins.schema.columns.userId = { type: 'uuid' };
+        db.tables.admins.schema.foreignKeys.userId = {
+          references: 'users.id',
+          onDelete: 'cascade'
+        };
+      }
+
+      // Migrate each admin
+      for (const adminId in db.tables.admins.rows) {
+        const admin = db.tables.admins.rows[adminId];
+        
+        // Generate user ID
+        const userId = generateUUID();
+        
+        // Create user from admin data
+        const email = admin.email || '';
+        const name = admin.name || '';
+        const nameParts = name.split(' ');
+        
+        db.tables.users.rows[userId] = {
+          id: userId,
+          username: email ? email.split('@')[0] : (name ? name.toLowerCase().replace(/\s+/g, '') : `admin_${adminId}`),
+          email: email,
+          password: '',
+          firstName: nameParts[0] || '',
+          lastName: nameParts.slice(1).join(' ') || '',
+          createdAt: admin.createdAt || new Date().toISOString()
+        };
+
+        // Update admin to reference user
+        db.tables.admins.rows[adminId].userId = userId;
+        // Remove old fields that are now in users
+        delete db.tables.admins.rows[adminId].name;
+        delete db.tables.admins.rows[adminId].email;
+      }
+    }
+
+    // Save migrated database
+    saveDB(db);
+    console.log('Database migration completed successfully');
+  } catch (error) {
+    console.error('Migration failed:', error);
+    // If migration fails, clear and let it reinitialize
+    localStorage.removeItem('MiniDB');
+  }
+}
+
+/**
  * Initialize demo database with comprehensive e-commerce store data
  */
 export function initSampleData() {
   const db = loadDB();
   
+  // Migrate if needed
+  migrateDatabaseIfNeeded();
+  
+  // Reload after potential migration
+  const dbAfterMigration = loadDB();
+  
   // Only initialize if database is empty
-  if (Object.keys(db.tables).length > 0) {
+  if (Object.keys(dbAfterMigration.tables).length > 0) {
     return;
   }
 
   try {
-    // Create customers table
-    createTable('customers', {
+    // Create users table (central user table - base for all users)
+    createTable('users', {
       columns: {
-        name: { type: 'string' },
+        username: { type: 'string' },
         email: { type: 'string' },
-        phone: { type: 'string' },
         password: { type: 'string' },
+        firstName: { type: 'string' },
+        lastName: { type: 'string' },
         createdAt: { type: 'date' }
       },
       foreignKeys: {}
     });
 
-    // Create admins table (for store management)
-    createTable('admins', {
+    // Create customers table (references users)
+    createTable('customers', {
       columns: {
-        name: { type: 'string' },
-        email: { type: 'string' },
-        role: { type: 'string' },
+        phone: { type: 'string' },
+        userId: { type: 'uuid' },
         createdAt: { type: 'date' }
       },
-      foreignKeys: {}
+      foreignKeys: {
+        userId: {
+          references: 'users.id',
+          onDelete: 'cascade'
+        }
+      }
+    });
+
+    // Create admins table (references users)
+    createTable('admins', {
+      columns: {
+        role: { type: 'string' },
+        userId: { type: 'uuid' },
+        createdAt: { type: 'date' }
+      },
+      foreignKeys: {
+        userId: {
+          references: 'users.id',
+          onDelete: 'cascade'
+        }
+      }
     });
 
     // Create categories table (for organizing products)
@@ -603,53 +760,98 @@ export function initSampleData() {
       description: 'Books and reading materials'
     });
 
-    // Customers
-    const customer1 = insertRow('customers', {
-      name: 'John Doe',
+    // Users (central user table - base for all users)
+    const user1 = insertRow('users', {
+      username: 'johndoe',
       email: 'john.doe@email.com',
-      phone: '555-0101',
-      password: 'hashed_password_1'
+      password: 'hashed_password_1',
+      firstName: 'John',
+      lastName: 'Doe'
     });
-    const customer2 = insertRow('customers', {
-      name: 'Jane Smith',
+    const user2 = insertRow('users', {
+      username: 'janesmith',
       email: 'jane.smith@email.com',
-      phone: '555-0102',
-      password: 'hashed_password_2'
+      password: 'hashed_password_2',
+      firstName: 'Jane',
+      lastName: 'Smith'
     });
-    const customer3 = insertRow('customers', {
-      name: 'Bob Johnson',
+    const user3 = insertRow('users', {
+      username: 'bobjohnson',
       email: 'bob.johnson@email.com',
-      phone: '555-0103',
-      password: 'hashed_password_3'
+      password: 'hashed_password_3',
+      firstName: 'Bob',
+      lastName: 'Johnson'
     });
-    const customer4 = insertRow('customers', {
-      name: 'Alice Williams',
+    const user4 = insertRow('users', {
+      username: 'alicewilliams',
       email: 'alice.williams@email.com',
-      phone: '555-0104',
-      password: 'hashed_password_4'
+      password: 'hashed_password_4',
+      firstName: 'Alice',
+      lastName: 'Williams'
     });
-    const customer5 = insertRow('customers', {
-      name: 'Charlie Brown',
+    const user5 = insertRow('users', {
+      username: 'charliebrown',
       email: 'charlie.brown@email.com',
-      phone: '555-0105',
-      password: 'hashed_password_5'
+      password: 'hashed_password_5',
+      firstName: 'Charlie',
+      lastName: 'Brown'
+    });
+    const user6 = insertRow('users', {
+      username: 'adminuser',
+      email: 'admin@store.com',
+      password: 'hashed_admin_password',
+      firstName: 'Admin',
+      lastName: 'User'
+    });
+    const user7 = insertRow('users', {
+      username: 'manageruser',
+      email: 'manager@store.com',
+      password: 'hashed_manager_password',
+      firstName: 'Manager',
+      lastName: 'User'
+    });
+    const user8 = insertRow('users', {
+      username: 'supportstaff',
+      email: 'support@store.com',
+      password: 'hashed_support_password',
+      firstName: 'Support',
+      lastName: 'Staff'
     });
 
-    // Admins
+    // Customers (reference users)
+    const customer1 = insertRow('customers', {
+      phone: '555-0101',
+      userId: user1.id
+    });
+    const customer2 = insertRow('customers', {
+      phone: '555-0102',
+      userId: user2.id
+    });
+    const customer3 = insertRow('customers', {
+      phone: '555-0103',
+      userId: user3.id
+    });
+    const customer4 = insertRow('customers', {
+      phone: '555-0104',
+      userId: user4.id
+    });
+    const customer5 = insertRow('customers', {
+      phone: '555-0105',
+      userId: user5.id
+    });
+
+    // Admins (reference users)
     insertRow('admins', {
-      name: 'Admin User',
-      email: 'admin@store.com',
-      role: 'superadmin'
+      role: 'superadmin',
+      userId: user6.id
     });
     insertRow('admins', {
-      name: 'Manager User',
-      email: 'manager@store.com',
-      role: 'manager'
+      role: 'manager',
+      userId: user7.id
     });
     insertRow('admins', {
-      name: 'Support Staff',
-      email: 'support@store.com',
-      role: 'support'
+      role: 'support',
+      userId: user8.id
     });
 
     // Products - Electronics

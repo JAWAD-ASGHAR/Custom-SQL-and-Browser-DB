@@ -1,44 +1,47 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  loadDB, 
-  saveDB, 
-  initSampleData, 
-  getAllTables, 
-  getTable, 
+import React, { useState, useEffect, useRef } from "react";
+import {
+  loadDB,
+  saveDB,
+  initSampleData,
+  getAllTables,
+  getTable,
   getTableRows,
   createTable,
   insertRow,
   updateRow,
   deleteRow,
   exportDatabase,
-  importDatabase
-} from './database';
-import { executeQuery } from './queryEngine';
+  importDatabase,
+} from "./database";
+import { executeQuery } from "./queryEngine";
 
 function App() {
   const [db, setDb] = useState({ meta: {}, tables: {} });
   const [selectedTable, setSelectedTable] = useState(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [result, setResult] = useState(null);
   const [showCreateTable, setShowCreateTable] = useState(false);
-  const [newTableName, setNewTableName] = useState('');
+  const [newTableName, setNewTableName] = useState("");
   const [showAddRow, setShowAddRow] = useState(false);
   const [newRow, setNewRow] = useState({});
   const [showAddColumn, setShowAddColumn] = useState(false);
-  const [newColumnName, setNewColumnName] = useState('');
-  const [columnType, setColumnType] = useState('string');
+  const [newColumnName, setNewColumnName] = useState("");
+  const [columnType, setColumnType] = useState("string");
   const [columnIsForeignKey, setColumnIsForeignKey] = useState(false);
-  const [referencedTable, setReferencedTable] = useState('');
+  const [referencedTable, setReferencedTable] = useState("");
   const [showCreateRelation, setShowCreateRelation] = useState(false);
-  const [relationFromTable, setRelationFromTable] = useState('');
-  const [relationFromColumn, setRelationFromColumn] = useState('');
-  const [relationToTable, setRelationToTable] = useState('');
-  const [onDeleteAction, setOnDeleteAction] = useState('restrict');
+  const [relationFromTable, setRelationFromTable] = useState("");
+  const [relationFromColumn, setRelationFromColumn] = useState("");
+  const [relationToTable, setRelationToTable] = useState("");
+  const [onDeleteAction, setOnDeleteAction] = useState("restrict");
   const [showRelationsView, setShowRelationsView] = useState(false);
   const [editingCell, setEditingCell] = useState(null); // { rowId, column }
-  const [editValue, setEditValue] = useState('');
+  const [editValue, setEditValue] = useState("");
   const [tablesToLink, setTablesToLink] = useState([]); // Tables to link when creating new table
   const [sidebarOpen, setSidebarOpen] = useState(false); // For mobile sidebar
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false); // Header actions menu
+  const [tableActionsMenuOpen, setTableActionsMenuOpen] = useState(false); // Table actions menu
+  const [resultsMenuOpen, setResultsMenuOpen] = useState(false); // Results actions menu
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -58,26 +61,26 @@ function App() {
 
   const handleRunQuery = () => {
     if (!query.trim()) {
-      setResult({ error: 'Please enter a query' });
+      setResult({ error: "Please enter a query" });
       return;
     }
 
     const queryResult = executeQuery(query);
     setResult(queryResult);
-    
+
     // Refresh database after query (in case data changed)
     refreshDb();
   };
 
   const handleCreateTable = () => {
     if (!newTableName.trim()) {
-      alert('Please enter a table name');
+      alert("Please enter a table name");
       return;
     }
 
     const tableName = newTableName.trim().toLowerCase();
     if (db.tables[tableName]) {
-      alert('Table already exists');
+      alert("Table already exists");
       return;
     }
 
@@ -85,24 +88,24 @@ function App() {
       // Build schema with foreign keys if any
       const foreignKeys = {};
       if (tablesToLink.length > 0) {
-        tablesToLink.forEach(refTable => {
+        tablesToLink.forEach((refTable) => {
           const fkColumnName = `${refTable}_id`;
           foreignKeys[fkColumnName] = {
             references: `${refTable}.id`,
-            onDelete: 'restrict'
+            onDelete: "restrict",
           };
         });
       }
 
       createTable(tableName, {
         columns: {},
-        foreignKeys
+        foreignKeys,
       });
 
       refreshDb();
       setSelectedTable(tableName);
       setShowCreateTable(false);
-      setNewTableName('');
+      setNewTableName("");
       setTablesToLink([]);
     } catch (error) {
       alert(`Error creating table: ${error.message}`);
@@ -133,38 +136,39 @@ function App() {
 
   const handleConfirmAddColumn = () => {
     if (!newColumnName.trim() && !columnIsForeignKey) {
-      alert('Please enter a column name');
+      alert("Please enter a column name");
       return;
     }
 
     try {
       const table = getTable(relationFromTable);
       if (!table) {
-        alert('Table not found');
+        alert("Table not found");
         return;
       }
 
-      const colName = columnIsForeignKey && referencedTable 
-        ? `${referencedTable}_id` 
-        : newColumnName.trim();
+      const colName =
+        columnIsForeignKey && referencedTable
+          ? `${referencedTable}_id`
+          : newColumnName.trim();
 
       if (columnIsForeignKey && !referencedTable) {
-        alert('Please select a table to reference');
+        alert("Please select a table to reference");
         return;
       }
 
       // Add column to schema
       const updatedDb = loadDB();
       const tableObj = updatedDb.tables[relationFromTable];
-      
+
       // Add column to schema
       tableObj.schema.columns[colName] = { type: columnType };
-      
+
       // If it's a foreign key, add to foreignKeys
       if (columnIsForeignKey) {
         tableObj.schema.foreignKeys[colName] = {
           references: `${referencedTable}.id`,
-          onDelete: 'restrict'
+          onDelete: "restrict",
         };
       }
 
@@ -177,12 +181,12 @@ function App() {
 
       saveDB(updatedDb);
       refreshDb();
-      
+
       // Reset form
-      setNewColumnName('');
-      setColumnType('string');
+      setNewColumnName("");
+      setColumnType("string");
       setColumnIsForeignKey(false);
-      setReferencedTable('');
+      setReferencedTable("");
       setShowAddColumn(false);
     } catch (error) {
       alert(`Error adding column: ${error.message}`);
@@ -191,16 +195,16 @@ function App() {
 
   const handleCreateRelation = () => {
     if (!relationFromTable || !relationToTable) {
-      alert('Please select both tables');
+      alert("Please select both tables");
       return;
     }
 
     try {
       const updatedDb = loadDB();
       const tableObj = updatedDb.tables[relationFromTable];
-      
+
       const fkColumnName = relationFromColumn || `${relationToTable}_id`;
-      
+
       // Check if column already exists
       if (tableObj.schema.columns[fkColumnName]) {
         alert(`Column "${fkColumnName}" already exists`);
@@ -208,12 +212,12 @@ function App() {
       }
 
       // Add column to schema
-      tableObj.schema.columns[fkColumnName] = { type: 'uuid' };
-      
+      tableObj.schema.columns[fkColumnName] = { type: "uuid" };
+
       // Add foreign key
       tableObj.schema.foreignKeys[fkColumnName] = {
         references: `${relationToTable}.id`,
-        onDelete: onDeleteAction
+        onDelete: onDeleteAction,
       };
 
       // Update existing rows
@@ -225,10 +229,10 @@ function App() {
       refreshDb();
 
       // Reset form
-      setRelationFromTable('');
-      setRelationFromColumn('');
-      setRelationToTable('');
-      setOnDeleteAction('restrict');
+      setRelationFromTable("");
+      setRelationFromColumn("");
+      setRelationToTable("");
+      setOnDeleteAction("restrict");
       setShowCreateRelation(false);
     } catch (error) {
       alert(`Error creating relation: ${error.message}`);
@@ -236,19 +240,19 @@ function App() {
   };
 
   const handleDeleteColumn = (tableName, colName) => {
-    if (colName === 'id') {
-      alert('Cannot delete id column (primary key)');
+    if (colName === "id") {
+      alert("Cannot delete id column (primary key)");
       return;
     }
     if (confirm(`Delete column "${colName}"?`)) {
       try {
         const updatedDb = loadDB();
         const tableObj = updatedDb.tables[tableName];
-        
+
         // Remove from schema
         delete tableObj.schema.columns[colName];
         delete tableObj.schema.foreignKeys[colName];
-        
+
         // Remove from all rows
         for (const rowId in tableObj.rows) {
           delete tableObj.rows[rowId][colName];
@@ -280,7 +284,7 @@ function App() {
   };
 
   const handleDeleteRow = (tableName, rowId) => {
-    if (confirm('Delete this row?')) {
+    if (confirm("Delete this row?")) {
       try {
         deleteRow(tableName, rowId);
         refreshDb();
@@ -291,47 +295,49 @@ function App() {
   };
 
   const handleCellDoubleClick = (rowId, column) => {
-    if (column === 'id') return; // Don't allow editing ID column
+    if (column === "id") return; // Don't allow editing ID column
     const rows = getTableRows(selectedTable);
-    const row = rows.find(r => r.id === rowId);
+    const row = rows.find((r) => r.id === rowId);
     if (row) {
       setEditingCell({ rowId, column });
-      setEditValue(String(row[column] || ''));
+      setEditValue(String(row[column] || ""));
     }
   };
 
   const handleCellSave = (tableName, rowId, column) => {
     try {
       let value = editValue.trim();
-      
+
       // Try to parse as number if it looks like a number
-      const numValue = value !== '' && !isNaN(value) && !isNaN(parseFloat(value)) 
-        ? Number(value) 
-        : value;
-      
+      const numValue =
+        value !== "" && !isNaN(value) && !isNaN(parseFloat(value))
+          ? Number(value)
+          : value;
+
       // For foreign keys, keep as string (UUID)
       const isFK = isForeignKey(column);
-      const finalValue = isFK && value !== '' ? value : (value === '' ? null : numValue);
-      
+      const finalValue =
+        isFK && value !== "" ? value : value === "" ? null : numValue;
+
       updateRow(tableName, rowId, { [column]: finalValue });
       refreshDb();
       setEditingCell(null);
-      setEditValue('');
+      setEditValue("");
     } catch (error) {
       alert(`Error updating cell: ${error.message}`);
       setEditingCell(null);
-      setEditValue('');
+      setEditValue("");
     }
   };
 
   const handleCellCancel = () => {
     setEditingCell(null);
-    setEditValue('');
+    setEditValue("");
   };
 
   // Helper: Check if a column is a foreign key
   const isForeignKey = (columnName) => {
-    if (columnName === 'id') return false;
+    if (columnName === "id") return false;
     if (!selectedTable) return false;
     const table = getTable(selectedTable);
     if (!table) return false;
@@ -345,26 +351,46 @@ function App() {
     if (!table) return null;
     const fk = table.schema.foreignKeys[columnName];
     if (!fk) return null;
-    const [refTable] = fk.references.split('.');
+    const [refTable] = fk.references.split(".");
     return refTable;
   };
 
   // Helper: Get display text for foreign key (shows name instead of just ID)
   const getForeignKeyDisplay = (columnName, rowValue) => {
-    if (!isForeignKey(columnName) || !rowValue) return String(rowValue || '');
-    
+    if (!isForeignKey(columnName) || !rowValue) return String(rowValue || "");
+
     const refTable = getReferencedTable(columnName);
     if (!refTable) return String(rowValue);
-    
+
     const refRows = getTableRows(refTable);
-    const refRow = refRows.find(r => r.id === rowValue);
+    const refRow = refRows.find((r) => r.id === rowValue);
     if (!refRow) return String(rowValue);
-    
+
+    // Special handling for users table
+    if (refTable === "users") {
+      if (refRow.firstName && refRow.lastName) {
+        return `${refRow.firstName} ${refRow.lastName} (${
+          refRow.username || refRow.email
+        })`;
+      }
+      return (
+        refRow.username || refRow.email || `User ${rowValue.substring(0, 8)}`
+      );
+    }
+
     // Try to find a "name" field, or use first meaningful string field
-    const name = refRow.name || refRow.title || Object.values(refRow).find(v => 
-      typeof v === 'string' && v.length < 50 && v !== String(rowValue) && v !== refRow.id
-    ) || `ID ${rowValue}`;
-    
+    const name =
+      refRow.name ||
+      refRow.title ||
+      Object.values(refRow).find(
+        (v) =>
+          typeof v === "string" &&
+          v.length < 50 &&
+          v !== String(rowValue) &&
+          v !== refRow.id
+      ) ||
+      `ID ${rowValue}`;
+
     return name;
   };
 
@@ -372,17 +398,17 @@ function App() {
   const getAllRelations = () => {
     const relations = [];
     const tables = getAllTables();
-    
+
     for (const tableName in tables) {
       const table = tables[tableName];
       for (const fkColumn in table.schema.foreignKeys) {
         const fk = table.schema.foreignKeys[fkColumn];
-        const [refTable] = fk.references.split('.');
+        const [refTable] = fk.references.split(".");
         relations.push({
           fromTable: tableName,
           fromColumn: fkColumn,
           toTable: refTable,
-          onDelete: fk.onDelete
+          onDelete: fk.onDelete,
         });
       }
     }
@@ -391,27 +417,29 @@ function App() {
 
   // Get current table rows as array
   const currentTable = selectedTable ? getTableRows(selectedTable) : [];
-  
+
   // Get columns from schema
-  const tableColumns = selectedTable && getTable(selectedTable)
-    ? Object.keys(getTable(selectedTable).schema.columns)
-    : [];
+  const tableColumns =
+    selectedTable && getTable(selectedTable)
+      ? Object.keys(getTable(selectedTable).schema.columns)
+      : [];
 
   // Get all table names for UI
   const tableNames = Object.keys(db.tables || {});
 
   // Handle clear database
   const handleClearDatabase = () => {
-    const confirmMessage = 'Are you sure you want to clear the entire database?\n\n' +
-      'This will delete ALL tables and data. This action cannot be undone!\n\n' +
-      'Consider exporting your data first if you want to keep a backup.';
-    
+    const confirmMessage =
+      "Are you sure you want to clear the entire database?\n\n" +
+      "This will delete ALL tables and data. This action cannot be undone!\n\n" +
+      "Consider exporting your data first if you want to keep a backup.";
+
     if (confirm(confirmMessage)) {
       try {
-        localStorage.removeItem('MiniDB');
+        localStorage.removeItem("MiniDB");
         refreshDb();
         setSelectedTable(null);
-        alert('Database cleared successfully!');
+        alert("Database cleared successfully!");
       } catch (error) {
         alert(`Error clearing database: ${error.message}`);
       }
@@ -428,22 +456,22 @@ function App() {
       try {
         const jsonString = e.target.result;
         const overwrite = confirm(
-          'Import database?\n\n' +
-          'OK = Replace all existing data\n' +
-          'Cancel = Merge with existing data'
+          "Import database?\n\n" +
+            "OK = Replace all existing data\n" +
+            "Cancel = Merge with existing data"
         );
-        
+
         importDatabase(jsonString, overwrite);
         refreshDb();
-        alert('Database imported successfully!');
+        alert("Database imported successfully!");
       } catch (error) {
         alert(`Error importing database: ${error.message}`);
       }
     };
     reader.readAsText(file);
-    
+
     // Reset file input
-    event.target.value = '';
+    event.target.value = "";
   };
 
   // Handle download sample dataset
@@ -453,29 +481,31 @@ function App() {
       // Save current database temporarily
       const currentDb = loadDB();
       const currentDbString = JSON.stringify(currentDb);
-      
+
       // Clear and initialize sample data
-      localStorage.removeItem('MiniDB');
+      localStorage.removeItem("MiniDB");
       initSampleData();
       const sampleDb = loadDB();
-      
+
       // Export the sample
       const jsonData = JSON.stringify(sampleDb, null, 2);
-      const blob = new Blob([jsonData], { type: 'application/json' });
+      const blob = new Blob([jsonData], { type: "application/json" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = 'minidb-sample-dataset.json';
+      a.download = "minidb-sample-dataset.json";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
+
       // Restore original database
-      localStorage.setItem('MiniDB', currentDbString);
+      localStorage.setItem("MiniDB", currentDbString);
       refreshDb();
-      
-      alert('Sample dataset downloaded! You can import it to restore the demo database.');
+
+      alert(
+        "Sample dataset downloaded! You can import it to restore the demo database."
+      );
     } catch (error) {
       alert(`Error generating sample dataset: ${error.message}`);
       // Try to restore on error
@@ -486,23 +516,50 @@ function App() {
           refreshDb();
         }
       } catch (e) {
-        console.error('Error restoring database:', e);
+        console.error("Error restoring database:", e);
       }
     }
   };
 
   // Suggested queries for the query console
   const suggestedQueries = [
-    { name: 'Select all customers', query: 'SELECT * FROM customers' },
-    { name: 'Select customers with names', query: 'SELECT name, email FROM customers' },
-    { name: 'Filter customers', query: 'SELECT * FROM customers WHERE name = "John Doe"' },
-    { name: 'Join carts and customers', query: 'JOIN carts customers ON carts.customerId = customers.id' },
-    { name: 'Join cart items and products', query: 'JOIN cart_items products ON cart_items.productId = products.id' },
-    { name: 'Join orders and customers', query: 'JOIN orders customers ON orders.customerId = customers.id' },
-    { name: 'Union customers and admins', query: 'UNION customers admins' },
-    { name: 'Intersect tables', query: 'INTERSECT customers admins' },
-    { name: 'Difference between tables', query: 'DIFF customers admins' },
-    { name: 'Show all tables', query: 'SHOW TABLES' },
+    { name: "Select all users", query: "SELECT * FROM users" },
+    { name: "Select all customers", query: "SELECT * FROM customers" },
+    { name: "Select all admins", query: "SELECT * FROM admins" },
+    { name: "Select all products", query: "SELECT * FROM products" },
+    {
+      name: "Join customers with users",
+      query: "JOIN customers users ON customers.userId = users.id",
+    },
+    {
+      name: "Join admins with users",
+      query: "JOIN admins users ON admins.userId = users.id",
+    },
+    {
+      name: "Join carts and customers",
+      query: "JOIN carts customers ON carts.customerId = customers.id",
+    },
+    {
+      name: "Join cart items and products",
+      query: "JOIN cart_items products ON cart_items.productId = products.id",
+    },
+    {
+      name: "Join orders and customers",
+      query: "JOIN orders customers ON orders.customerId = customers.id",
+    },
+    {
+      name: "Join products with categories",
+      query: "JOIN products categories ON products.categoryId = categories.id",
+    },
+    {
+      name: "Filter users by email",
+      query: 'SELECT * FROM users WHERE email = "john.doe@email.com"',
+    },
+    {
+      name: "Filter products by price",
+      query: "SELECT * FROM products WHERE price > 100",
+    },
+    { name: "Show all tables", query: "SHOW TABLES" },
   ];
 
   return (
@@ -513,28 +570,30 @@ function App() {
         ref={fileInputRef}
         onChange={handleImport}
         accept=".json"
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       />
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-70 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar - Supabase Style */}
-      <div className={`w-64 bg-[#1a1a1a] border-r border-[#2a2a2a] text-white flex flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>
+      <div
+        className={`w-64 bg-[#1a1a1a] border-r border-[#2a2a2a] text-white flex flex-col fixed left-0 top-0 bottom-0 overflow-y-auto z-50 transform transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0`}
+      >
         <div className="p-4 border-b border-[#2a2a2a] flex items-center gap-3">
-          <img 
-            src="/favicon.png" 
-            alt="MiniDB Logo" 
+          <img
+            src="/favicon.png"
+            alt="MiniDB Logo"
             className="w-8 h-8 rounded"
             onError={(e) => {
-              e.target.style.display = 'none';
+              e.target.style.display = "none";
             }}
           />
           <div className="flex-1">
@@ -570,22 +629,24 @@ function App() {
           </button>
 
           <div className="mb-2">
-            <p className="text-xs font-semibold text-[#8b8b8b] uppercase tracking-wider px-3 py-2">Tables</p>
+            <p className="text-xs font-semibold text-[#8b8b8b] uppercase tracking-wider px-3 py-2">
+              Tables
+            </p>
           </div>
           <div className="space-y-1">
             {tableNames.length === 0 ? (
               <p className="text-[#8b8b8b] text-sm p-3">No tables yet</p>
             ) : (
-              tableNames.map(tableName => {
+              tableNames.map((tableName) => {
                 const table = getTable(tableName);
                 const rowCount = table ? Object.keys(table.rows).length : 0;
                 return (
                   <div
                     key={tableName}
                     className={`px-3 py-2 rounded-md cursor-pointer flex justify-between items-center group transition-colors ${
-                      selectedTable === tableName 
-                        ? 'bg-[#3b82f6] text-white' 
-                        : 'hover:bg-[#2a2a2a] text-[#e0e0e0]'
+                      selectedTable === tableName
+                        ? "bg-[#3b82f6] text-white"
+                        : "hover:bg-[#2a2a2a] text-[#e0e0e0]"
                     }`}
                     onClick={() => {
                       setSelectedTable(tableName);
@@ -594,7 +655,13 @@ function App() {
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="text-sm truncate">{tableName}</span>
-                      <span className={`text-xs ${selectedTable === tableName ? 'text-blue-200' : 'text-[#8b8b8b]'}`}>
+                      <span
+                        className={`text-xs ${
+                          selectedTable === tableName
+                            ? "text-blue-200"
+                            : "text-[#8b8b8b]"
+                        }`}
+                      >
                         ({rowCount})
                       </span>
                     </div>
@@ -629,13 +696,13 @@ function App() {
             >
               ☰
             </button>
-            
+
             <div className="flex gap-1 flex-shrink-0">
               <button
                 className={`px-4 py-2 font-medium text-sm rounded-md transition-colors whitespace-nowrap ${
-                  selectedTable 
-                    ? 'bg-[#2a2a2a] text-white' 
-                    : 'text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]'
+                  selectedTable
+                    ? "bg-[#2a2a2a] text-white"
+                    : "text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]"
                 }`}
                 onClick={() => {
                   const firstTable = tableNames[0];
@@ -646,9 +713,9 @@ function App() {
               </button>
               <button
                 className={`px-4 py-2 font-medium text-sm rounded-md transition-colors whitespace-nowrap ${
-                  !selectedTable 
-                    ? 'bg-[#2a2a2a] text-white' 
-                    : 'text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]'
+                  !selectedTable
+                    ? "bg-[#2a2a2a] text-white"
+                    : "text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]"
                 }`}
                 onClick={() => setSelectedTable(null)}
               >
@@ -656,9 +723,10 @@ function App() {
               </button>
             </div>
           </div>
-          
+
           {/* Action buttons - Supabase Style */}
-          <div className="flex gap-2 flex-shrink-0">
+          {/* Desktop: Show buttons, Mobile: Show dropdown */}
+          <div className="hidden lg:flex gap-2 flex-shrink-0">
             <button
               onClick={handleDownloadSample}
               className="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-md text-xs font-medium transition-colors whitespace-nowrap"
@@ -678,8 +746,55 @@ function App() {
               className="px-3 py-1.5 bg-[#ef4444] hover:bg-[#dc2626] text-white rounded-md text-xs font-medium transition-colors whitespace-nowrap"
               title="Clear entire database"
             >
-              Clear
+              Drop DB
             </button>
+          </div>
+          
+          {/* Mobile: Dropdown menu */}
+          <div className="lg:hidden relative">
+            <button
+              onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+              className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-xs font-medium transition-colors"
+            >
+              ⋯
+            </button>
+            {headerMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setHeaderMenuOpen(false)}
+                />
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-50">
+                  <button
+                    onClick={() => {
+                      handleDownloadSample();
+                      setHeaderMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                  >
+                    📥 Sample
+                  </button>
+                  <button
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setHeaderMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                  >
+                    📤 Import
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleClearDatabase();
+                      setHeaderMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-[#ef4444] hover:bg-[#252525] transition-colors"
+                  >
+                    🗑️ Drop DB
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -688,8 +803,11 @@ function App() {
           <div className="flex-1 overflow-hidden p-4 lg:p-6 min-w-0">
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 h-full flex flex-col min-w-0">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 flex-shrink-0">
-                <h2 className="text-xl lg:text-2xl font-semibold text-white">{selectedTable}</h2>
-                <div className="flex flex-wrap gap-2">
+                <h2 className="text-xl lg:text-2xl font-semibold text-white">
+                  {selectedTable}
+                </h2>
+                {/* Desktop: Show buttons, Mobile: Show dropdown */}
+                <div className="hidden sm:flex flex-wrap gap-2">
                   <button
                     onClick={() => {
                       setRelationFromTable(selectedTable);
@@ -713,149 +831,273 @@ function App() {
                     + Row
                   </button>
                 </div>
+                
+                {/* Mobile: Dropdown menu */}
+                <div className="sm:hidden relative">
+                  <button
+                    onClick={() => setTableActionsMenuOpen(!tableActionsMenuOpen)}
+                    className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-sm font-medium transition-colors"
+                  >
+                    ⋯ Actions
+                  </button>
+                  {tableActionsMenuOpen && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-40" 
+                        onClick={() => setTableActionsMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-50">
+                        <button
+                          onClick={() => {
+                            setRelationFromTable(selectedTable);
+                            setShowCreateRelation(true);
+                            setTableActionsMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                        >
+                          🔗 Relation
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleAddColumn(selectedTable);
+                            setTableActionsMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                        >
+                          + Column
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAddRow(true);
+                            setTableActionsMenuOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                        >
+                          + Row
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               {currentTable.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-[#8b8b8b] mb-2">No rows in this table. Add a row to get started!</p>
-                  <p className="text-sm text-[#6b6b6b]">Note: The 'id' column is automatically added as the primary key (UUID).</p>
+                  <p className="text-[#8b8b8b] mb-2">
+                    No rows in this table. Add a row to get started!
+                  </p>
+                  <p className="text-sm text-[#6b6b6b]">
+                    Note: The 'id' column is automatically added as the primary
+                    key (UUID).
+                  </p>
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
                   <div className="table-scroll-container h-full w-full">
                     <table className="border-collapse">
-                    <thead className="sticky top-0 z-10">
-                      <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
-                        {tableColumns.map(col => (
-                          <th key={col} className="border-b border-[#2a2a2a] px-3 py-3 text-left whitespace-nowrap">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="truncate text-xs lg:text-sm font-medium text-white">{col}</span>
-                                {isForeignKey(col) && (
-                                  <span 
-                                    className="text-[#8b5cf6] text-xs flex-shrink-0" 
-                                    title={`Foreign key → ${getReferencedTable(col)}`}
-                                  >
-                                    🔗
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
+                          {tableColumns.map((col) => (
+                            <th
+                              key={col}
+                              className="border-b border-[#2a2a2a] px-3 py-3 text-left whitespace-nowrap"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="truncate text-xs lg:text-sm font-medium text-white">
+                                    {col}
                                   </span>
-                                )}
-                                {col === 'id' && (
-                                  <span 
-                                    className="text-[#10b981] text-xs flex-shrink-0" 
-                                    title="Primary key"
+                                  {isForeignKey(col) && (
+                                    <span
+                                      className="text-[#8b5cf6] text-xs flex-shrink-0"
+                                      title={`Foreign key → ${getReferencedTable(
+                                        col
+                                      )}`}
+                                    >
+                                      🔗
+                                    </span>
+                                  )}
+                                  {col === "id" && (
+                                    <span
+                                      className="text-[#10b981] text-xs flex-shrink-0"
+                                      title="Primary key"
+                                    >
+                                      🔑
+                                    </span>
+                                  )}
+                                </div>
+                                {col !== "id" && (
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteColumn(selectedTable, col)
+                                    }
+                                    className="text-[#8b8b8b] hover:text-red-400 ml-1 flex-shrink-0 transition-colors"
+                                    title="Delete column"
                                   >
-                                    🔑
-                                  </span>
+                                    ×
+                                  </button>
                                 )}
                               </div>
-                              {col !== 'id' && (
-                                <button
-                                  onClick={() => handleDeleteColumn(selectedTable, col)}
-                                  className="text-[#8b8b8b] hover:text-red-400 ml-1 flex-shrink-0 transition-colors"
-                                  title="Delete column"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
+                            </th>
+                          ))}
+                          <th className="border-b border-[#2a2a2a] px-3 py-3 whitespace-nowrap sticky right-0 bg-[#1e1e1e] text-white text-xs lg:text-sm font-medium">
+                            Actions
                           </th>
-                        ))}
-                        <th className="border-b border-[#2a2a2a] px-3 py-3 whitespace-nowrap sticky right-0 bg-[#1e1e1e] text-white text-xs lg:text-sm font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {currentTable.map((row, idx) => (
-                        <tr key={row.id || idx} className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors">
-                          {tableColumns.map(col => {
-                            const isEditing = editingCell?.rowId === row.id && editingCell?.column === col;
-                            const isFK = isForeignKey(col);
-                            const refTable = getReferencedTable(col);
-                            const refTableData = refTable ? getTableRows(refTable) : [];
-                            
-                            return (
-                              <td 
-                                key={col} 
-                                className={`px-3 py-3 relative max-w-xs lg:max-w-none ${
-                                  col === 'id' 
-                                    ? 'text-[#8b8b8b]' 
-                                    : 'text-[#e0e0e0] hover:bg-[#252525] transition-colors'
-                                }`}
-                                onDoubleClick={() => handleCellDoubleClick(row.id, col)}
-                                style={{ cursor: col === 'id' ? 'default' : 'pointer' }}
-                                title={col === 'id' ? 'ID cannot be edited' : 'Double-click to edit'}
-                              >
-                                {isEditing ? (
-                                  isFK && refTableData.length > 0 ? (
-                                    <select
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      onBlur={() => handleCellSave(selectedTable, row.id, col)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          handleCellSave(selectedTable, row.id, col);
-                                        } else if (e.key === 'Escape') {
-                                          handleCellCancel();
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {currentTable.map((row, idx) => (
+                          <tr
+                            key={row.id || idx}
+                            className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors"
+                          >
+                            {tableColumns.map((col) => {
+                              const isEditing =
+                                editingCell?.rowId === row.id &&
+                                editingCell?.column === col;
+                              const isFK = isForeignKey(col);
+                              const refTable = getReferencedTable(col);
+                              const refTableData = refTable
+                                ? getTableRows(refTable)
+                                : [];
+
+                              return (
+                                <td
+                                  key={col}
+                                  className={`px-3 py-3 relative max-w-xs lg:max-w-none ${
+                                    col === "id"
+                                      ? "text-[#8b8b8b]"
+                                      : "text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                                  }`}
+                                  onDoubleClick={() =>
+                                    handleCellDoubleClick(row.id, col)
+                                  }
+                                  style={{
+                                    cursor:
+                                      col === "id" ? "default" : "pointer",
+                                  }}
+                                  title={
+                                    col === "id"
+                                      ? "ID cannot be edited"
+                                      : "Double-click to edit"
+                                  }
+                                >
+                                  {isEditing ? (
+                                    isFK && refTableData.length > 0 ? (
+                                      <select
+                                        value={editValue}
+                                        onChange={(e) =>
+                                          setEditValue(e.target.value)
                                         }
-                                      }}
-                                      autoFocus
-                                      className="w-full p-2 bg-[#1e1e1e] border border-[#3b82f6] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
-                                    >
-                                      <option value="" className="bg-[#1e1e1e]">Select {refTable}...</option>
-                                      {refTableData.map(refRow => (
-                                        <option key={refRow.id} value={refRow.id} className="bg-[#1e1e1e]">
-                                          {refRow.id.substring(0, 8)}... - {getForeignKeyDisplay(col, refRow.id)}
+                                        onBlur={() =>
+                                          handleCellSave(
+                                            selectedTable,
+                                            row.id,
+                                            col
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            handleCellSave(
+                                              selectedTable,
+                                              row.id,
+                                              col
+                                            );
+                                          } else if (e.key === "Escape") {
+                                            handleCellCancel();
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="w-full p-2 bg-[#1e1e1e] border border-[#3b82f6] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                                      >
+                                        <option
+                                          value=""
+                                          className="bg-[#1e1e1e]"
+                                        >
+                                          Select {refTable}...
                                         </option>
-                                      ))}
-                                    </select>
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      value={editValue}
-                                      onChange={(e) => setEditValue(e.target.value)}
-                                      onBlur={() => handleCellSave(selectedTable, row.id, col)}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          handleCellSave(selectedTable, row.id, col);
-                                        } else if (e.key === 'Escape') {
-                                          handleCellCancel();
+                                        {refTableData.map((refRow) => (
+                                          <option
+                                            key={refRow.id}
+                                            value={refRow.id}
+                                            className="bg-[#1e1e1e]"
+                                          >
+                                            {refRow.id.substring(0, 8)}... -{" "}
+                                            {getForeignKeyDisplay(
+                                              col,
+                                              refRow.id
+                                            )}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        type="text"
+                                        value={editValue}
+                                        onChange={(e) =>
+                                          setEditValue(e.target.value)
                                         }
-                                      }}
-                                      autoFocus
-                                      className="w-full p-2 bg-[#1e1e1e] border border-[#3b82f6] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
-                                    />
-                                  )
-                                ) : (
-                                  isFK ? (
+                                        onBlur={() =>
+                                          handleCellSave(
+                                            selectedTable,
+                                            row.id,
+                                            col
+                                          )
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            handleCellSave(
+                                              selectedTable,
+                                              row.id,
+                                              col
+                                            );
+                                          } else if (e.key === "Escape") {
+                                            handleCellCancel();
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="w-full p-2 bg-[#1e1e1e] border border-[#3b82f6] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                                      />
+                                    )
+                                  ) : isFK ? (
                                     <div className="flex items-center gap-2 min-w-0">
                                       <span className="text-[#8b5cf6] font-medium truncate">
                                         {getForeignKeyDisplay(col, row[col])}
                                       </span>
                                       {row[col] && (
-                                        <span className="text-xs text-[#6b6b6b] flex-shrink-0">({row[col].substring(0, 8)}...)</span>
+                                        <span className="text-xs text-[#6b6b6b] flex-shrink-0">
+                                          ({row[col].substring(0, 8)}...)
+                                        </span>
                                       )}
                                     </div>
                                   ) : (
                                     <div>
-                                      <div className="break-words text-xs lg:text-sm truncate lg:whitespace-normal" title={String(row[col] || '')}>
-                                        {col === 'id' ? row[col].substring(0, 8) + '...' : String(row[col] || '')}
+                                      <div
+                                        className="break-words text-xs lg:text-sm truncate lg:whitespace-normal"
+                                        title={String(row[col] || "")}
+                                      >
+                                        {col === "id"
+                                          ? row[col].substring(0, 8) + "..."
+                                          : String(row[col] || "")}
                                       </div>
                                     </div>
-                                  )
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td className="px-3 py-3 sticky right-0 bg-[#1a1a1a]">
-                            <button
-                              onClick={() => handleDeleteRow(selectedTable, row.id)}
-                              className="text-[#ef4444] hover:text-[#dc2626] text-xs lg:text-sm transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="px-3 py-3 sticky right-0 bg-[#1a1a1a]">
+                              <button
+                                onClick={() =>
+                                  handleDeleteRow(selectedTable, row.id)
+                                }
+                                className="text-[#ef4444] hover:text-[#dc2626] text-xs lg:text-sm transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
                     </table>
                   </div>
                 </div>
@@ -869,7 +1111,9 @@ function App() {
               {/* Query Editor - Left Side */}
               <div className="flex-1 flex flex-col overflow-hidden border-r border-[#2a2a2a] min-w-0">
                 <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-2 flex items-center justify-between flex-shrink-0">
-                  <h3 className="text-sm font-semibold text-white">SQL Editor</h3>
+                  <h3 className="text-sm font-semibold text-white">
+                    SQL Editor
+                  </h3>
                   <div className="flex gap-2">
                     <button
                       onClick={handleRunQuery}
@@ -879,10 +1123,11 @@ function App() {
                     </button>
                     <button
                       onClick={() => {
-                        setQuery('');
+                        setQuery("");
                         setResult(null);
                       }}
-                      className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md text-xs font-medium transition-colors"
+                      className="px-3 py-1.5 bg-[#7b7373] hover:bg-[#b9abab] text-white rounded-md text-xs font-medium transition-colors"
+                      title="Drop/Clear entire database"
                     >
                       Clear
                     </button>
@@ -892,11 +1137,14 @@ function App() {
                   <textarea
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="-- Enter your SQL query here\n-- Press Ctrl+Enter (Cmd+Enter on Mac) to run\n\nSELECT * FROM customers;"
+                    placeholder="Enter your SQL query here"
                     className="w-full h-full min-h-[150px] bg-[#1e1e1e] text-[#e0e0e0] font-mono text-sm p-4 rounded-md border border-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] resize-none"
-                    style={{ fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace" }}
+                    style={{
+                      fontFamily:
+                        "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                         e.preventDefault();
                         handleRunQuery();
                       }
@@ -911,7 +1159,9 @@ function App() {
               {/* Suggested Queries - Right Side (Scrollable) */}
               <div className="w-full lg:w-80 bg-[#1a1a1a] flex flex-col overflow-hidden flex-shrink-0">
                 <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-2 flex-shrink-0">
-                  <h3 className="text-sm font-semibold text-white">Suggested Queries</h3>
+                  <h3 className="text-sm font-semibold text-white">
+                    Suggested Queries
+                  </h3>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 min-h-0">
                   <div className="space-y-2">
@@ -921,8 +1171,12 @@ function App() {
                         onClick={() => setQuery(suggested.query)}
                         className="w-full text-left p-3 bg-[#1e1e1e] hover:bg-[#252525] border border-[#2a2a2a] rounded-md transition-colors group"
                       >
-                        <div className="text-xs font-medium text-[#8b8b8b] mb-1">{suggested.name}</div>
-                        <div className="text-xs font-mono text-[#e0e0e0] break-all">{suggested.query}</div>
+                        <div className="text-xs font-medium text-[#8b8b8b] mb-1">
+                          {suggested.name}
+                        </div>
+                        <div className="text-xs font-mono text-[#e0e0e0] break-all">
+                          {suggested.query}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -932,48 +1186,257 @@ function App() {
 
             {/* Results - Bottom Section - Takes Remaining Space */}
             <div className="flex-1 flex flex-col overflow-hidden bg-[#1a1a1a] min-h-0">
-              <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3">
+              <div className="bg-[#1a1a1a] border-b border-[#2a2a2a] px-4 py-3 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">
-                  {result ? (result.error ? 'Error' : 'Results') : 'Results'}
+                  {result ? (result.error ? "Error" : "Results") : "Results"}
                 </h3>
+                {result && result.data && result.data.length > 0 && (
+                  <>
+                    {/* Desktop: Show buttons */}
+                    <div className="hidden lg:flex gap-2">
+                      <button
+                        onClick={() => {
+                          // Copy results as JSON
+                          const jsonData = JSON.stringify(result.data, null, 2);
+                          navigator.clipboard
+                            .writeText(jsonData)
+                            .then(() => {
+                              alert("Results copied to clipboard!");
+                            })
+                            .catch(() => {
+                              alert("Failed to copy to clipboard");
+                            });
+                        }}
+                        className="px-3 py-1.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md text-xs font-medium transition-colors"
+                        title="Copy results as JSON"
+                      >
+                        📋 Copy JSON
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Export results as CSV
+                          if (result.data.length === 0) return;
+
+                          const headers = Object.keys(result.data[0]);
+                          const csvRows = [
+                            headers.join(","),
+                            ...result.data.map((row) =>
+                              headers
+                                .map((header) => {
+                                  const value = row[header];
+                                  // Escape commas and quotes in CSV
+                                  if (value === null || value === undefined)
+                                    return "";
+                                  const stringValue = String(value);
+                                  if (
+                                    stringValue.includes(",") ||
+                                    stringValue.includes('"') ||
+                                    stringValue.includes("\n")
+                                  ) {
+                                    return `"${stringValue.replace(/"/g, '""')}"`;
+                                  }
+                                  return stringValue;
+                                })
+                                .join(",")
+                            ),
+                          ];
+
+                          const csv = csvRows.join("\n");
+                          const blob = new Blob([csv], { type: "text/csv" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `query-results-${
+                            new Date().toISOString().split("T")[0]
+                          }.csv`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white rounded-md text-xs font-medium transition-colors"
+                        title="Export results as CSV"
+                      >
+                        📥 Export CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Export results as JSON file
+                          const jsonData = JSON.stringify(result.data, null, 2);
+                          const blob = new Blob([jsonData], {
+                            type: "application/json",
+                          });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `query-results-${
+                            new Date().toISOString().split("T")[0]
+                          }.json`;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="px-3 py-1.5 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-md text-xs font-medium transition-colors"
+                        title="Export results as JSON file"
+                      >
+                        📥 Export JSON
+                      </button>
+                    </div>
+                    
+                    {/* Mobile: Dropdown menu */}
+                    <div className="lg:hidden relative">
+                      <button
+                        onClick={() => setResultsMenuOpen(!resultsMenuOpen)}
+                        className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-xs font-medium transition-colors"
+                      >
+                        ⋯ Export
+                      </button>
+                      {resultsMenuOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={() => setResultsMenuOpen(false)}
+                          />
+                          <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-50">
+                            <button
+                              onClick={() => {
+                                const jsonData = JSON.stringify(result.data, null, 2);
+                                navigator.clipboard
+                                  .writeText(jsonData)
+                                  .then(() => {
+                                    alert("Results copied to clipboard!");
+                                  })
+                                  .catch(() => {
+                                    alert("Failed to copy to clipboard");
+                                  });
+                                setResultsMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                            >
+                              📋 Copy JSON
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (result.data.length === 0) return;
+                                const headers = Object.keys(result.data[0]);
+                                const csvRows = [
+                                  headers.join(","),
+                                  ...result.data.map((row) =>
+                                    headers
+                                      .map((header) => {
+                                        const value = row[header];
+                                        if (value === null || value === undefined) return "";
+                                        const stringValue = String(value);
+                                        if (
+                                          stringValue.includes(",") ||
+                                          stringValue.includes('"') ||
+                                          stringValue.includes("\n")
+                                        ) {
+                                          return `"${stringValue.replace(/"/g, '""')}"`;
+                                        }
+                                        return stringValue;
+                                      })
+                                      .join(",")
+                                  ),
+                                ];
+                                const csv = csvRows.join("\n");
+                                const blob = new Blob([csv], { type: "text/csv" });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `query-results-${new Date().toISOString().split("T")[0]}.csv`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                setResultsMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                            >
+                              📥 Export CSV
+                            </button>
+                            <button
+                              onClick={() => {
+                                const jsonData = JSON.stringify(result.data, null, 2);
+                                const blob = new Blob([jsonData], { type: "application/json" });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `query-results-${new Date().toISOString().split("T")[0]}.json`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                                setResultsMenuOpen(false);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-[#e0e0e0] hover:bg-[#252525] transition-colors"
+                            >
+                              📥 Export JSON
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
               <div className="flex-1 overflow-auto p-4 min-h-0">
                 {!result ? (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-[#8b8b8b] text-sm">No query executed yet. Write a query and press Ctrl+Enter to run.</p>
+                    <p className="text-[#8b8b8b] text-sm">
+                      No query executed yet. Write a query and press Ctrl+Enter
+                      to run.
+                    </p>
                   </div>
                 ) : result.error ? (
                   <div className="bg-[#7f1d1d] border border-[#991b1b] rounded-md p-4">
-                    <p className="text-red-300 text-sm font-medium">Error: {result.error}</p>
+                    <p className="text-red-300 text-sm font-medium">
+                      Error: {result.error}
+                    </p>
                   </div>
                 ) : result.data && result.data.length > 0 ? (
                   <div className="h-full flex flex-col">
-                    <p className="text-[#8b8b8b] text-sm mb-4 flex-shrink-0">Found {result.data.length} row(s)</p>
+                    <p className="text-[#8b8b8b] text-sm mb-4 flex-shrink-0">
+                      Found {result.data.length} row(s)
+                    </p>
                     <div className="flex-1 overflow-auto min-h-0">
                       <div className="table-scroll-container w-full h-full">
                         <table className="border-collapse">
-                        <thead>
-                          <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
-                            {Object.keys(result.data[0]).map(col => (
-                              <th key={col} className="border-b border-[#2a2a2a] px-3 py-2 text-left text-xs font-medium text-white whitespace-nowrap">
-                                {col}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {result.data.map((row, idx) => (
-                            <tr key={idx} className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors">
-                              {Object.keys(result.data[0]).map(col => (
-                                <td key={col} className="px-3 py-2 text-xs text-[#e0e0e0]">
-                                  <div className="max-w-xs lg:max-w-none truncate lg:whitespace-normal" title={String(row[col] || '')}>
-                                    {String(row[col] || '')}
-                                  </div>
-                                </td>
+                          <thead>
+                            <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
+                              {Object.keys(result.data[0]).map((col) => (
+                                <th
+                                  key={col}
+                                  className="border-b border-[#2a2a2a] px-3 py-2 text-left text-xs font-medium text-white whitespace-nowrap"
+                                >
+                                  {col}
+                                </th>
                               ))}
                             </tr>
-                          ))}
-                        </tbody>
+                          </thead>
+                          <tbody>
+                            {result.data.map((row, idx) => (
+                              <tr
+                                key={idx}
+                                className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors"
+                              >
+                                {Object.keys(result.data[0]).map((col) => (
+                                  <td
+                                    key={col}
+                                    className="px-3 py-2 text-xs text-[#e0e0e0]"
+                                  >
+                                    <div
+                                      className="max-w-xs lg:max-w-none truncate lg:whitespace-normal"
+                                      title={String(row[col] || "")}
+                                    >
+                                      {String(row[col] || "")}
+                                    </div>
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
                         </table>
                       </div>
                     </div>
@@ -993,10 +1456,14 @@ function App() {
       {showCreateTable && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-white mb-4">Create Table</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Create Table
+            </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Table Name</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                  Table Name
+                </label>
                 <input
                   type="text"
                   value={newTableName}
@@ -1005,7 +1472,7 @@ function App() {
                   placeholder="e.g., products"
                 />
               </div>
-              
+
               {/* Link to Other Tables Section */}
               {tableNames.length > 0 && (
                 <div>
@@ -1013,8 +1480,11 @@ function App() {
                     Link to Other Tables (Optional)
                   </label>
                   <div className="space-y-2 max-h-32 overflow-y-auto border border-[#2a2a2a] p-2 rounded-md bg-[#1e1e1e]">
-                    {tableNames.map(tableName => (
-                      <label key={tableName} className="flex items-center space-x-2 cursor-pointer hover:bg-[#252525] p-1.5 rounded-md transition-colors">
+                    {tableNames.map((tableName) => (
+                      <label
+                        key={tableName}
+                        className="flex items-center space-x-2 cursor-pointer hover:bg-[#252525] p-1.5 rounded-md transition-colors"
+                      >
                         <input
                           type="checkbox"
                           checked={tablesToLink.includes(tableName)}
@@ -1022,18 +1492,25 @@ function App() {
                             if (e.target.checked) {
                               setTablesToLink([...tablesToLink, tableName]);
                             } else {
-                              setTablesToLink(tablesToLink.filter(t => t !== tableName));
+                              setTablesToLink(
+                                tablesToLink.filter((t) => t !== tableName)
+                              );
                             }
                           }}
                           className="w-4 h-4 text-[#3b82f6] bg-[#1e1e1e] border-[#2a2a2a] rounded focus:ring-[#3b82f6]"
                         />
-                        <span className="text-sm flex-1 text-[#e0e0e0]">{tableName}</span>
-                        <span className="text-xs text-[#8b8b8b]">({tableName}_id)</span>
+                        <span className="text-sm flex-1 text-[#e0e0e0]">
+                          {tableName}
+                        </span>
+                        <span className="text-xs text-[#8b8b8b]">
+                          ({tableName}_id)
+                        </span>
                       </label>
                     ))}
                   </div>
                   <p className="text-xs text-[#8b8b8b] mt-1">
-                    Selected tables will create foreign key columns that link to them
+                    Selected tables will create foreign key columns that link to
+                    them
                   </p>
                 </div>
               )}
@@ -1048,7 +1525,7 @@ function App() {
               <button
                 onClick={() => {
                   setShowCreateTable(false);
-                  setNewTableName('');
+                  setNewTableName("");
                   setTablesToLink([]);
                 }}
                 className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
@@ -1066,72 +1543,95 @@ function App() {
           <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold text-white mb-4">Add Row</h2>
             <div className="space-y-4">
-              {tableColumns.length === 1 && tableColumns[0] === 'id' ? (
+              {tableColumns.length === 1 && tableColumns[0] === "id" ? (
                 <p className="text-[#8b8b8b] text-sm">
                   Table has no columns. Add a column first.
                 </p>
               ) : (
-                tableColumns.filter(col => col !== 'id').map(col => {
-                  const isFK = isForeignKey(col);
-                  const refTable = getReferencedTable(col);
-                  const refTableData = refTable ? getTableRows(refTable) : [];
-                  const table = getTable(selectedTable);
-                  const column = table?.schema.columns[col];
-                  const isDateColumn = column?.type === 'date';
-                  const isCreatedAt = col === 'createdAt' && isDateColumn;
-                  
-                  return (
-                    <div key={col}>
-                      <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
-                        {col}
-                        {isFK && (
-                          <span className="text-[#8b5cf6] text-xs ml-2" title={`Foreign key → ${refTable}`}>
-                            🔗
-                          </span>
-                        )}
+                tableColumns
+                  .filter((col) => col !== "id")
+                  .map((col) => {
+                    const isFK = isForeignKey(col);
+                    const refTable = getReferencedTable(col);
+                    const refTableData = refTable ? getTableRows(refTable) : [];
+                    const table = getTable(selectedTable);
+                    const column = table?.schema.columns[col];
+                    const isDateColumn = column?.type === "date";
+                    const isCreatedAt = col === "createdAt" && isDateColumn;
+
+                    return (
+                      <div key={col}>
+                        <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                          {col}
+                          {isFK && (
+                            <span
+                              className="text-[#8b5cf6] text-xs ml-2"
+                              title={`Foreign key → ${refTable}`}
+                            >
+                              🔗
+                            </span>
+                          )}
+                          {isCreatedAt && (
+                            <span
+                              className="text-[#10b981] text-xs ml-2"
+                              title="Auto-set to current date/time"
+                            >
+                              ⏰ (auto)
+                            </span>
+                          )}
+                        </label>
                         {isCreatedAt && (
-                          <span className="text-[#10b981] text-xs ml-2" title="Auto-set to current date/time">
-                            ⏰ (auto)
-                          </span>
+                          <p className="text-xs text-[#8b8b8b] mb-1">
+                            Leave empty to auto-set to current date/time
+                          </p>
                         )}
-                      </label>
-                      {isCreatedAt && (
-                        <p className="text-xs text-[#8b8b8b] mb-1">
-                          Leave empty to auto-set to current date/time
-                        </p>
-                      )}
-                      {isFK && refTableData.length > 0 ? (
-                        <select
-                          value={newRow[col] || ''}
-                          onChange={(e) => {
-                            setNewRow({ ...newRow, [col]: e.target.value || null });
-                          }}
-                          className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
-                        >
-                          <option value="" className="bg-[#1e1e1e]">Select {refTable}...</option>
-                          {refTableData.map(row => (
-                            <option key={row.id} value={row.id} className="bg-[#1e1e1e]">
-                              {row.id.substring(0, 8)}... - {getForeignKeyDisplay(col, row.id)}
+                        {isFK && refTableData.length > 0 ? (
+                          <select
+                            value={newRow[col] || ""}
+                            onChange={(e) => {
+                              setNewRow({
+                                ...newRow,
+                                [col]: e.target.value || null,
+                              });
+                            }}
+                            className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                          >
+                            <option value="" className="bg-[#1e1e1e]">
+                              Select {refTable}...
                             </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={newRow[col] || ''}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            // Try to parse as number if it looks like a number
-                            const numValue = value.trim() !== '' && !isNaN(value) ? Number(value) : value;
-                            setNewRow({ ...newRow, [col]: numValue || null });
-                          }}
-                          className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
-                          placeholder={isFK ? `Enter ${refTable} ID` : `Enter ${col}`}
-                        />
-                      )}
-                    </div>
-                  );
-                })
+                            {refTableData.map((row) => (
+                              <option
+                                key={row.id}
+                                value={row.id}
+                                className="bg-[#1e1e1e]"
+                              >
+                                {row.id.substring(0, 8)}... -{" "}
+                                {getForeignKeyDisplay(col, row.id)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={newRow[col] || ""}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Try to parse as number if it looks like a number
+                              const numValue =
+                                value.trim() !== "" && !isNaN(value)
+                                  ? Number(value)
+                                  : value;
+                              setNewRow({ ...newRow, [col]: numValue || null });
+                            }}
+                            className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
+                            placeholder={
+                              isFK ? `Enter ${refTable} ID` : `Enter ${col}`
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })
               )}
             </div>
             <div className="mt-6 flex gap-2">
@@ -1159,10 +1659,14 @@ function App() {
       {showAddColumn && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-white mb-4">Add Column to {relationFromTable}</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Add Column to {relationFromTable}
+            </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Column Name</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                  Column Name
+                </label>
                 <input
                   type="text"
                   value={newColumnName}
@@ -1178,7 +1682,9 @@ function App() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Column Type</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                  Column Type
+                </label>
                 <select
                   value={columnType}
                   onChange={(e) => setColumnType(e.target.value)}
@@ -1199,17 +1705,21 @@ function App() {
                     onChange={(e) => {
                       setColumnIsForeignKey(e.target.checked);
                       if (!e.target.checked) {
-                        setReferencedTable('');
+                        setReferencedTable("");
                       }
                     }}
                     className="w-4 h-4"
                   />
-                  <span className="text-sm font-medium">This is a Foreign Key (Relation)</span>
+                  <span className="text-sm font-medium">
+                    This is a Foreign Key (Relation)
+                  </span>
                 </label>
               </div>
               {columnIsForeignKey && (
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">References Table</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                    References Table
+                  </label>
                   <select
                     value={referencedTable}
                     onChange={(e) => setReferencedTable(e.target.value)}
@@ -1217,15 +1727,16 @@ function App() {
                   >
                     <option value="">Select a table...</option>
                     {tableNames
-                      .filter(t => t !== relationFromTable)
-                      .map(tableName => (
+                      .filter((t) => t !== relationFromTable)
+                      .map((tableName) => (
                         <option key={tableName} value={tableName}>
                           {tableName}
                         </option>
                       ))}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    This column will reference the <strong>id</strong> column of the selected table
+                    This column will reference the <strong>id</strong> column of
+                    the selected table
                   </p>
                 </div>
               )}
@@ -1240,10 +1751,10 @@ function App() {
               <button
                 onClick={() => {
                   setShowAddColumn(false);
-                  setNewColumnName('');
-                  setColumnType('string');
+                  setNewColumnName("");
+                  setColumnType("string");
                   setColumnIsForeignKey(false);
-                  setReferencedTable('');
+                  setReferencedTable("");
                 }}
                 className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
@@ -1258,20 +1769,24 @@ function App() {
       {showCreateRelation && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-white mb-4">Create Relation (Foreign Key)</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Create Relation (Foreign Key)
+            </h2>
             <div className="space-y-4 mb-4">
               <div>
-                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">From Table (has foreign key)</label>
+                <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                  From Table (has foreign key)
+                </label>
                 <select
                   value={relationFromTable}
                   onChange={(e) => {
                     setRelationFromTable(e.target.value);
-                    setRelationFromColumn('');
+                    setRelationFromColumn("");
                   }}
                   className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                 >
                   <option value="">Select table...</option>
-                  {tableNames.map(tableName => (
+                  {tableNames.map((tableName) => (
                     <option key={tableName} value={tableName}>
                       {tableName}
                     </option>
@@ -1281,12 +1796,16 @@ function App() {
 
               {relationFromTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">Column Name (or leave empty for auto)</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                    Column Name (or leave empty for auto)
+                  </label>
                   <input
                     type="text"
                     value={relationFromColumn}
                     onChange={(e) => setRelationFromColumn(e.target.value)}
-                    placeholder={`Will be: ${relationToTable || 'tablename'}_id`}
+                    placeholder={`Will be: ${
+                      relationToTable || "tablename"
+                    }_id`}
                     className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   />
                 </div>
@@ -1294,7 +1813,9 @@ function App() {
 
               {relationFromTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">To Table (referenced table)</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                    To Table (referenced table)
+                  </label>
                   <select
                     value={relationToTable}
                     onChange={(e) => setRelationToTable(e.target.value)}
@@ -1302,8 +1823,8 @@ function App() {
                   >
                     <option value="">Select table to reference...</option>
                     {tableNames
-                      .filter(t => t !== relationFromTable)
-                      .map(tableName => (
+                      .filter((t) => t !== relationFromTable)
+                      .map((tableName) => (
                         <option key={tableName} value={tableName}>
                           {tableName}
                         </option>
@@ -1314,14 +1835,20 @@ function App() {
 
               {relationFromTable && relationToTable && (
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">On Delete Action</label>
+                  <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+                    On Delete Action
+                  </label>
                   <select
                     value={onDeleteAction}
                     onChange={(e) => setOnDeleteAction(e.target.value)}
                     className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
                   >
-                    <option value="restrict">Restrict (prevent deletion)</option>
-                    <option value="cascade">Cascade (delete related rows)</option>
+                    <option value="restrict">
+                      Restrict (prevent deletion)
+                    </option>
+                    <option value="cascade">
+                      Cascade (delete related rows)
+                    </option>
                     <option value="set-null">Set Null (set FK to null)</option>
                   </select>
                 </div>
@@ -1329,9 +1856,15 @@ function App() {
 
               {relationFromTable && relationToTable && (
                 <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
-                  <p className="font-semibold text-green-800">Relation Summary:</p>
+                  <p className="font-semibold text-green-800">
+                    Relation Summary:
+                  </p>
                   <p className="text-green-700 mt-1">
-                    <strong>{relationFromTable}</strong> will have a column <strong>{relationFromColumn || `${relationToTable}_id`}</strong> that references <strong>{relationToTable}.id</strong>
+                    <strong>{relationFromTable}</strong> will have a column{" "}
+                    <strong>
+                      {relationFromColumn || `${relationToTable}_id`}
+                    </strong>{" "}
+                    that references <strong>{relationToTable}.id</strong>
                   </p>
                   <p className="text-green-700 mt-1 text-xs">
                     On delete: <strong>{onDeleteAction}</strong>
@@ -1350,10 +1883,10 @@ function App() {
               <button
                 onClick={() => {
                   setShowCreateRelation(false);
-                  setRelationFromTable('');
-                  setRelationFromColumn('');
-                  setRelationToTable('');
-                  setOnDeleteAction('restrict');
+                  setRelationFromTable("");
+                  setRelationFromColumn("");
+                  setRelationToTable("");
+                  setOnDeleteAction("restrict");
                 }}
                 className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
               >
@@ -1369,45 +1902,61 @@ function App() {
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
           <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-4 lg:p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Database Relations</h2>
+              <h2 className="text-xl font-semibold text-white">
+                Database Relations
+              </h2>
               <button
                 onClick={() => setShowRelationsView(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-[#8b8b8b] hover:text-white transition-colors"
               >
                 ✕
               </button>
             </div>
-            
+
             {getAllRelations().length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No relations created yet.</p>
-                <p className="text-sm text-gray-400">
-                  Use the "🔗 Create Relation" button on any table to create a foreign key relationship.
+                <p className="text-[#8b8b8b] mb-4">No relations created yet.</p>
+                <p className="text-sm text-[#6b6b6b]">
+                  Use the "🔗 Create Relation" button on any table to create a
+                  foreign key relationship.
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm mb-4">
-                  <p className="font-semibold text-blue-800">How Relations Work:</p>
-                  <p className="text-blue-700 mt-1">
-                    A foreign key column stores the <strong>id</strong> (UUID) of a row from another table, creating a link between tables.
+                <div className="bg-[#1e1e1e] border border-[#3b82f6] rounded-md p-3 text-sm mb-4">
+                  <p className="font-semibold text-[#3b82f6]">
+                    How Relations Work:
+                  </p>
+                  <p className="text-[#e0e0e0] mt-1">
+                    A foreign key column stores the{" "}
+                    <strong className="text-white">id</strong> (UUID) of a row
+                    from another table, creating a link between tables.
                   </p>
                 </div>
-                
+
                 <div className="space-y-3">
                   {getAllRelations().map((rel, idx) => (
-                    <div key={idx} className="border border-gray-300 rounded p-4 bg-gray-50">
-                      <div className="flex items-center gap-2 mb-2">
+                    <div
+                      key={idx}
+                      className="border border-[#2a2a2a] rounded-md p-4 bg-[#1e1e1e] hover:bg-[#252525] transition-colors"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
                         <span className="text-2xl">🔗</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-white">
                             {rel.fromTable}.{rel.fromColumn}
                           </div>
-                          <div className="text-sm text-gray-600">
-                            → references → <strong>{rel.toTable}.id</strong>
+                          <div className="text-sm text-[#8b8b8b] mt-1">
+                            → references →{" "}
+                            <strong className="text-[#8b5cf6]">
+                              {rel.toTable}.id
+                            </strong>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            On delete: <strong>{rel.onDelete}</strong>
+                          <div className="text-xs text-[#6b6b6b] mt-1">
+                            On delete:{" "}
+                            <strong className="text-[#e0e0e0]">
+                              {rel.onDelete}
+                            </strong>
                           </div>
                         </div>
                         <button
@@ -1415,7 +1964,7 @@ function App() {
                             setSelectedTable(rel.fromTable);
                             setShowRelationsView(false);
                           }}
-                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                          className="px-3 py-1.5 bg-[#3b82f6] hover:bg-[#2563eb] text-white text-sm rounded-md font-medium transition-colors flex-shrink-0"
                         >
                           View Table
                         </button>
@@ -1425,7 +1974,7 @@ function App() {
                 </div>
               </div>
             )}
-            
+
             <div className="mt-6">
               <button
                 onClick={() => setShowRelationsView(false)}
