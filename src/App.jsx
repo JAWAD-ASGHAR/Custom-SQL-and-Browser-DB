@@ -49,6 +49,7 @@ function App() {
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [tablesToLink, setTablesToLink] = useState([]);
+  const [initialColumns, setInitialColumns] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [tableActionsMenuOpen, setTableActionsMenuOpen] = useState(false);
@@ -82,23 +83,52 @@ function App() {
     refreshDb();
   };
 
-  const handleCreateTable = () => {
+  const handleCreateTable = (columnsFromModal = null) => {
     if (!newTableName.trim()) {
       alert("Please enter a table name");
       return;
     }
 
     const tableName = newTableName.trim().toLowerCase();
-    if (db.tables[tableName]) {
+    const currentDb = loadDB();
+    
+    if (currentDb.tables[tableName]) {
       alert("Table already exists");
       return;
     }
 
     try {
+      const columns = {};
+      
+      const columnsToProcess = columnsFromModal !== null ? columnsFromModal : initialColumns;
+      
+      if (columnsToProcess && Array.isArray(columnsToProcess) && columnsToProcess.length > 0) {
+        columnsToProcess.forEach((col) => {
+          if (!col || !col.name || typeof col.name !== 'string') {
+            return;
+          }
+          
+          const normalizedColName = col.name.trim().toLowerCase();
+          
+          if (!normalizedColName || normalizedColName === "id") {
+            return;
+          }
+          
+          columns[normalizedColName] = { 
+            type: col.type || "string" 
+          };
+        });
+      }
+
       const foreignKeys = {};
-      if (tablesToLink.length > 0) {
+      if (tablesToLink && tablesToLink.length > 0) {
         tablesToLink.forEach((refTable) => {
           const fkColumnName = `${refTable}_id`;
+          
+          if (!columns[fkColumnName]) {
+            columns[fkColumnName] = { type: "uuid" };
+          }
+          
           foreignKeys[fkColumnName] = {
             references: `${refTable}.id`,
             onDelete: "restrict",
@@ -106,16 +136,24 @@ function App() {
         });
       }
 
+      // Validate that at least one column exists (besides the automatic 'id' column)
+      const columnKeys = Object.keys(columns);
+      if (columnKeys.length === 0) {
+        alert("Please add at least one column before creating the table.\n\nUse the 'Initial Columns' section to add columns with their data types.");
+        return;
+      }
+
       createTable(tableName, {
-        columns: {},
+        columns,
         foreignKeys,
       });
-
+    
       refreshDb();
       setSelectedTable(tableName);
       setShowCreateTable(false);
       setNewTableName("");
       setTablesToLink([]);
+      setInitialColumns([]);
     } catch (error) {
       alert(`Error creating table: ${error.message}`);
     }
@@ -159,15 +197,30 @@ function App() {
       const colName =
         columnIsForeignKey && referencedTable
           ? `${referencedTable}_id`
-          : newColumnName.trim();
+          : newColumnName.trim().toLowerCase();
 
       if (columnIsForeignKey && !referencedTable) {
         alert("Please select a table to reference");
         return;
       }
 
+      if (colName === "id") {
+        alert("Column name 'id' is reserved for the primary key");
+        return;
+      }
+
       const updatedDb = loadDB();
       const tableObj = updatedDb.tables[relationFromTable];
+
+      if (!tableObj) {
+        alert("Table not found");
+        return;
+      }
+
+      if (tableObj.schema.columns[colName]) {
+        alert(`Column "${colName}" already exists`);
+        return;
+      }
 
       tableObj.schema.columns[colName] = { type: columnType };
       if (columnIsForeignKey) {
@@ -614,6 +667,8 @@ function App() {
         setTablesToLink={setTablesToLink}
         tableNames={tableNames}
         handleCreateTable={handleCreateTable}
+        initialColumns={initialColumns}
+        setInitialColumns={setInitialColumns}
       />
 
       <AddRowModal
