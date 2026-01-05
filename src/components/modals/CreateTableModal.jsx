@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function CreateTableModal({
   showCreateTable,
@@ -9,8 +9,52 @@ export default function CreateTableModal({
   setTablesToLink,
   tableNames,
   handleCreateTable,
+  initialColumns,
+  setInitialColumns,
 }) {
+  const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnType, setNewColumnType] = useState("string");
+
   if (!showCreateTable) return null;
+
+  const handleAddInitialColumn = () => {
+    if (!newColumnName.trim()) {
+      alert("Please enter a column name");
+      return;
+    }
+    
+    const normalizedNewName = newColumnName.trim().toLowerCase();
+    
+    if (normalizedNewName === "id") {
+      alert("Column name 'id' is reserved for the primary key");
+      return;
+    }
+    
+    if (initialColumns.some(col => col.name.trim().toLowerCase() === normalizedNewName)) {
+      alert("Column name already exists");
+      return;
+    }
+
+    setInitialColumns([
+      ...initialColumns,
+      { name: newColumnName.trim(), type: newColumnType },
+    ]);
+    setNewColumnName("");
+    setNewColumnType("string");
+  };
+
+  const handleRemoveInitialColumn = (index) => {
+    setInitialColumns(initialColumns.filter((_, i) => i !== index));
+  };
+
+  const handleReset = () => {
+    setShowCreateTable(false);
+    setNewTableName("");
+    setTablesToLink([]);
+    setInitialColumns([]);
+    setNewColumnName("");
+    setNewColumnType("string");
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
@@ -28,6 +72,71 @@ export default function CreateTableModal({
               className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
               placeholder="e.g., products"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2 text-[#e0e0e0]">
+              Initial Columns <span className="text-red-400">*</span>
+            </label>
+            <div className="space-y-2 mb-2">
+              {initialColumns.map((col, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 p-2 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md"
+                >
+                  <span className="flex-1 text-sm text-[#e0e0e0]">
+                    <span className="font-medium">{col.name}</span>
+                    <span className="text-[#8b8b8b] ml-2">({col.type})</span>
+                  </span>
+                  <button
+                    onClick={() => handleRemoveInitialColumn(index)}
+                    className="text-[#ef4444] hover:text-[#dc2626] text-lg font-bold transition-colors"
+                    title="Remove column"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newColumnName}
+                onChange={(e) => setNewColumnName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleAddInitialColumn();
+                  }
+                }}
+                className="flex-1 p-2 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6] text-sm"
+                placeholder="Column name"
+              />
+              <select
+                value={newColumnType}
+                onChange={(e) => setNewColumnType(e.target.value)}
+                className="p-2 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#3b82f6] text-sm"
+              >
+                <option value="string">String</option>
+                <option value="number">Number</option>
+                <option value="date">Date</option>
+                <option value="boolean">Boolean</option>
+              </select>
+              <button
+                onClick={handleAddInitialColumn}
+                className="px-3 py-2 bg-[#10b981] hover:bg-[#059669] text-white rounded-md text-sm font-medium transition-colors"
+                title="Add column"
+              >
+                +
+              </button>
+            </div>
+            <p className="text-xs text-[#8b8b8b] mt-1">
+              At least one column is required to create a table
+            </p>
+            {initialColumns.length === 0 && (
+              <p className="text-xs text-red-400 mt-1">
+                ⚠ Please add at least one column before creating the table
+              </p>
+            )}
           </div>
 
           {tableNames.length > 0 && (
@@ -72,17 +181,21 @@ export default function CreateTableModal({
         </div>
         <div className="mt-6 flex gap-2">
           <button
-            onClick={handleCreateTable}
-            className="flex-1 px-4 py-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-md font-medium transition-colors"
+            onClick={() => {
+              handleCreateTable(initialColumns);
+            }}
+            disabled={initialColumns.length === 0}
+            className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+              initialColumns.length === 0
+                ? "bg-[#3a3a3a] text-[#6b6b6b] cursor-not-allowed"
+                : "bg-[#3b82f6] hover:bg-[#2563eb] text-white"
+            }`}
+            title={initialColumns.length === 0 ? "Please add at least one column" : "Create table"}
           >
             Create
           </button>
           <button
-            onClick={() => {
-              setShowCreateTable(false);
-              setNewTableName("");
-              setTablesToLink([]);
-            }}
+            onClick={handleReset}
             className="flex-1 px-4 py-2 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-[#e0e0e0] rounded-md font-medium transition-colors"
           >
             Cancel

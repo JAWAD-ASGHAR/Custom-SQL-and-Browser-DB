@@ -105,68 +105,73 @@ export default function TableView({
           </div>
         </div>
 
-        {currentTable.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-[#8b8b8b] mb-2">
-              No rows in this table. Add a row to get started!
-            </p>
-            <p className="text-sm text-[#6b6b6b]">
-              Note: The 'id' column is automatically added as the primary key
-              (UUID).
-            </p>
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-            <div className="table-scroll-container h-full w-full">
-              <table className="border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
-                    {tableColumns.map((col) => (
-                      <th
-                        key={col}
-                        className="border-b border-[#2a2a2a] px-3 py-3 text-left whitespace-nowrap"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="truncate text-xs lg:text-sm font-medium text-white">
-                              {col}
-                            </span>
-                            {isForeignKey(col) && (
-                              <span
-                                className="text-[#8b5cf6] text-xs flex-shrink-0"
-                                title={`Foreign key → ${getReferencedTable(col)}`}
-                              >
-                                🔗
-                              </span>
-                            )}
-                            {col === "id" && (
-                              <span
-                                className="text-[#10b981] text-xs flex-shrink-0"
-                                title="Primary key"
-                              >
-                                🔑
-                              </span>
-                            )}
-                          </div>
-                          {col !== "id" && (
-                            <button
-                              onClick={() => handleDeleteColumn(selectedTable, col)}
-                              className="text-[#8b8b8b] hover:text-red-400 ml-1 flex-shrink-0 transition-colors"
-                              title="Delete column"
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+          <div className="table-scroll-container h-full w-full">
+            <table className="border-collapse">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
+                  {tableColumns.map((col) => (
+                    <th
+                      key={col}
+                      className="border-b border-[#2a2a2a] px-3 py-3 text-left whitespace-nowrap"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="truncate text-xs lg:text-sm font-medium text-white">
+                            {col}
+                          </span>
+                          {isForeignKey(col) && (
+                            <span
+                              className="text-[#8b5cf6] text-xs flex-shrink-0"
+                              title={`Foreign key → ${getReferencedTable(col)}`}
                             >
-                              ×
-                            </button>
+                              🔗
+                            </span>
+                          )}
+                          {col === "id" && (
+                            <span
+                              className="text-[#10b981] text-xs flex-shrink-0"
+                              title="Primary key"
+                            >
+                              🔑
+                            </span>
                           )}
                         </div>
-                      </th>
-                    ))}
-                    <th className="border-b border-[#2a2a2a] px-3 py-3 whitespace-nowrap sticky right-0 bg-[#1e1e1e] text-white text-xs lg:text-sm font-medium">
-                      Actions
+                        {col !== "id" && (
+                          <button
+                            onClick={() => handleDeleteColumn(selectedTable, col)}
+                            className="text-[#8b8b8b] hover:text-red-400 ml-1 flex-shrink-0 transition-colors"
+                            title="Delete column"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                     </th>
+                  ))}
+                  <th className="border-b border-[#2a2a2a] px-3 py-3 whitespace-nowrap sticky right-0 bg-[#1e1e1e] text-white text-xs lg:text-sm font-medium">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentTable.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={tableColumns.length + 1}
+                      className="px-3 py-12 text-center"
+                    >
+                      <p className="text-[#8b8b8b] mb-2">
+                        No rows in this table. Add a row to get started!
+                      </p>
+                      <p className="text-sm text-[#6b6b6b]">
+                        Note: The 'id' column is automatically added as the primary key
+                        (UUID).
+                      </p>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {currentTable.map((row, idx) => (
+                ) : (
+                  currentTable.map((row, idx) => (
                     <tr
                       key={row.id || idx}
                       className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors"
@@ -287,12 +292,12 @@ export default function TableView({
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
