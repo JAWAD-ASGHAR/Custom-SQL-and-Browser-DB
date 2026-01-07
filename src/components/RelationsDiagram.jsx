@@ -29,7 +29,7 @@ const nodeTypes = {
       <div className="bg-[#3b82f6] text-white px-4 py-2 font-semibold text-sm rounded-t-md">
         {data.label}
       </div>
-      <div className="p-2 max-h-[300px] overflow-y-auto">
+      <div className="px-2 pt-2 pb-1 max-h-[300px] overflow-y-auto">
         <div className="space-y-1">
           {data.columns.map((col, idx) => (
             <div
@@ -100,7 +100,7 @@ export default function RelationsDiagram({ onNodeClick, selectedTable, db }) {
           columns,
         },
         width: 220,
-        height: Math.min(400, 100 + columns.length * 30), // Dynamic height based on columns
+        height: Math.min(400, 50 + columns.length * 28), // Dynamic height based on columns
         style: {
           background: selectedTable === tableName ? '#2a2a2a' : '#1e1e1e',
         },

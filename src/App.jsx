@@ -522,9 +522,6 @@ function App() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      localStorage.setItem("MiniDB", currentDbString);
-      refreshDb();
-
       alert(
         "Sample dataset downloaded! You can import it to restore the demo database."
       );
