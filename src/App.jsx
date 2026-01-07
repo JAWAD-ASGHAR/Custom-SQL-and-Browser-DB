@@ -576,6 +576,65 @@ function App() {
       query: "SELECT * FROM products WHERE price > 100",
     },
     { name: "Show all tables", query: "SHOW TABLES" },
+    // Discrete Mathematics: Set Operations - UNION
+    {
+      name: "UNION: Combine customers and admins (all users)",
+      query: "UNION customers admins",
+    },
+    {
+      name: "UNION: Combine all products and categories",
+      query: "UNION products categories",
+    },
+    {
+      name: "UNION: Combine cart items and order items",
+      query: "UNION cart_items order_items",
+    },
+    {
+      name: "UNION: Combine addresses and orders",
+      query: "UNION addresses orders",
+    },
+    // Discrete Mathematics: Set Operations - INTERSECT
+    {
+      name: "INTERSECT: Find common records in customers and admins",
+      query: "INTERSECT customers admins",
+    },
+    {
+      name: "INTERSECT: Find common products in carts and orders",
+      query: "INTERSECT cart_items order_items",
+    },
+    {
+      name: "INTERSECT: Find overlapping addresses and orders",
+      query: "INTERSECT addresses orders",
+    },
+    {
+      name: "INTERSECT: Find common elements in products and categories",
+      query: "INTERSECT products categories",
+    },
+    // Discrete Mathematics: Set Operations - DIFF (Set Difference)
+    {
+      name: "DIFF: Customers not in admins (set difference)",
+      query: "DIFF customers admins",
+    },
+    {
+      name: "DIFF: Admins not in customers (set difference)",
+      query: "DIFF admins customers",
+    },
+    {
+      name: "DIFF: Cart items not in order items",
+      query: "DIFF cart_items order_items",
+    },
+    {
+      name: "DIFF: Order items not in cart items",
+      query: "DIFF order_items cart_items",
+    },
+    {
+      name: "DIFF: Products not in categories",
+      query: "DIFF products categories",
+    },
+    {
+      name: "DIFF: Categories not in products",
+      query: "DIFF categories products",
+    },
   ];
 
   return (
