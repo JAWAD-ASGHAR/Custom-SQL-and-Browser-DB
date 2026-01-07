@@ -26,7 +26,7 @@ export default function Header({
         <div className="flex gap-1 flex-shrink-0">
           <button
             className={`px-4 py-2 font-medium text-sm rounded-md transition-colors whitespace-nowrap ${
-              selectedTable
+              selectedTable && selectedTable !== "relations"
                 ? "bg-[#2a2a2a] text-white"
                 : "text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]"
             }`}
@@ -46,6 +46,16 @@ export default function Header({
             onClick={() => setSelectedTable(null)}
           >
             SQL Editor
+          </button>
+          <button
+            className={`px-4 py-2 font-medium text-sm rounded-md transition-colors whitespace-nowrap ${
+              selectedTable === "relations"
+                ? "bg-[#2a2a2a] text-white"
+                : "text-[#8b8b8b] hover:text-white hover:bg-[#2a2a2a]"
+            }`}
+            onClick={() => setSelectedTable("relations")}
+          >
+            Relations
           </button>
         </div>
       </div>

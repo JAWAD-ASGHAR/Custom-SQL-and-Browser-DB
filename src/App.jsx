@@ -19,6 +19,7 @@ import Header from "./components/Header";
 import TableView from "./components/TableView";
 import QueryEditor from "./components/QueryEditor";
 import QueryResults from "./components/QueryResults";
+import RelationsDiagram from "./components/RelationsDiagram";
 import CreateTableModal from "./components/modals/CreateTableModal";
 import AddRowModal from "./components/modals/AddRowModal";
 import AddColumnModal from "./components/modals/AddColumnModal";
@@ -615,7 +616,17 @@ function App() {
           fileInputRef={fileInputRef}
         />
 
-        {selectedTable ? (
+        {selectedTable === "relations" ? (
+          <div className="flex-1 overflow-hidden">
+            <RelationsDiagram
+              onNodeClick={(tableName) => {
+                setSelectedTable(tableName);
+              }}
+              selectedTable={null}
+              db={db}
+            />
+          </div>
+        ) : selectedTable ? (
           <TableView
             selectedTable={selectedTable}
             currentTable={currentTable}
