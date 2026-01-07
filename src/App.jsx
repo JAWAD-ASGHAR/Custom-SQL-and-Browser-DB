@@ -25,6 +25,7 @@ import AddColumnModal from "./components/modals/AddColumnModal";
 import CreateRelationModal from "./components/modals/CreateRelationModal";
 import ViewRelationsModal from "./components/modals/ViewRelationsModal";
 import SuggestedQueriesModal from "./components/modals/SuggestedQueriesModal";
+import AlertModal from "./components/modals/AlertModal";
 
 function App() {
   const [db, setDb] = useState({ meta: {}, tables: {} });
@@ -55,7 +56,46 @@ function App() {
   const [tableActionsMenuOpen, setTableActionsMenuOpen] = useState(false);
   const [resultsMenuOpen, setResultsMenuOpen] = useState(false);
   const [showSuggestedQueriesModal, setShowSuggestedQueriesModal] = useState(false);
+  const [alertState, setAlertState] = useState({ show: false, message: "", title: "", type: "alert", variant: "info", onConfirm: null, onCancel: null });
+  const [confirmState, setConfirmState] = useState({ show: false, message: "", title: "", onConfirm: null, onCancel: null });
   const fileInputRef = useRef(null);
+
+  // Helper function to show alert
+  const showAlert = (message, title = "Alert", variant = "info") => {
+    return new Promise((resolve) => {
+      setAlertState({
+        show: true,
+        message,
+        title,
+        type: "alert",
+        variant,
+        onConfirm: () => {
+          setAlertState({ show: false, message: "", title: "", type: "alert", variant: "info", onConfirm: null, onCancel: null });
+          resolve();
+        },
+        onCancel: null,
+      });
+    });
+  };
+
+  // Helper function to show confirm
+  const showConfirm = (message, title = "Confirm") => {
+    return new Promise((resolve) => {
+      setConfirmState({
+        show: true,
+        message,
+        title,
+        onConfirm: () => {
+          setConfirmState({ show: false, message: "", title: "", onConfirm: null, onCancel: null });
+          resolve(true);
+        },
+        onCancel: () => {
+          setConfirmState({ show: false, message: "", title: "", onConfirm: null, onCancel: null });
+          resolve(false);
+        },
+      });
+    });
+  };
 
   useEffect(() => {
     const loadedDb = loadDB();
@@ -83,9 +123,9 @@ function App() {
     refreshDb();
   };
 
-  const handleCreateTable = (columnsFromModal = null) => {
+  const handleCreateTable = async (columnsFromModal = null) => {
     if (!newTableName.trim()) {
-      alert("Please enter a table name");
+      await showAlert("Please enter a table name");
       return;
     }
 
@@ -93,7 +133,7 @@ function App() {
     const currentDb = loadDB();
     
     if (currentDb.tables[tableName]) {
-      alert("Table already exists");
+      await showAlert("Table already exists");
       return;
     }
 
@@ -139,7 +179,7 @@ function App() {
       // Validate that at least one column exists (besides the automatic 'id' column)
       const columnKeys = Object.keys(columns);
       if (columnKeys.length === 0) {
-        alert("Please add at least one column before creating the table.\n\nUse the 'Initial Columns' section to add columns with their data types.");
+        await showAlert("Please add at least one column before creating the table.\n\nUse the 'Initial Columns' section to add columns with their data types.");
         return;
       }
 
@@ -155,12 +195,13 @@ function App() {
       setTablesToLink([]);
       setInitialColumns([]);
     } catch (error) {
-      alert(`Error creating table: ${error.message}`);
+      await showAlert(`Error creating table: ${error.message}`, "Error", "error");
     }
   };
 
-  const handleDeleteTable = (tableName) => {
-    if (confirm(`Delete table "${tableName}"?`)) {
+  const handleDeleteTable = async (tableName) => {
+    const confirmed = await showConfirm(`Delete table "${tableName}"?`, "Delete Table");
+    if (confirmed) {
       try {
         const updatedDb = loadDB();
         delete updatedDb.tables[tableName];
@@ -171,7 +212,7 @@ function App() {
           setSelectedTable(remaining.length > 0 ? remaining[0] : null);
         }
       } catch (error) {
-        alert(`Error deleting table: ${error.message}`);
+        await showAlert(`Error deleting table: ${error.message}`, "Error", "error");
       }
     }
   };
@@ -181,16 +222,16 @@ function App() {
     setShowAddColumn(true);
   };
 
-  const handleConfirmAddColumn = () => {
+  const handleConfirmAddColumn = async () => {
     if (!newColumnName.trim() && !columnIsForeignKey) {
-      alert("Please enter a column name");
+      await showAlert("Please enter a column name");
       return;
     }
 
     try {
       const table = getTable(relationFromTable);
       if (!table) {
-        alert("Table not found");
+        await showAlert("Table not found");
         return;
       }
 
@@ -200,12 +241,12 @@ function App() {
           : newColumnName.trim().toLowerCase();
 
       if (columnIsForeignKey && !referencedTable) {
-        alert("Please select a table to reference");
+        await showAlert("Please select a table to reference");
         return;
       }
 
       if (colName === "id") {
-        alert("Column name 'id' is reserved for the primary key");
+        await showAlert("Column name 'id' is reserved for the primary key");
         return;
       }
 
@@ -213,12 +254,12 @@ function App() {
       const tableObj = updatedDb.tables[relationFromTable];
 
       if (!tableObj) {
-        alert("Table not found");
+        await showAlert("Table not found");
         return;
       }
 
       if (tableObj.schema.columns[colName]) {
-        alert(`Column "${colName}" already exists`);
+        await showAlert(`Column "${colName}" already exists`);
         return;
       }
 
@@ -245,13 +286,13 @@ function App() {
       setReferencedTable("");
       setShowAddColumn(false);
     } catch (error) {
-      alert(`Error adding column: ${error.message}`);
+      await showAlert(`Error adding column: ${error.message}`, "Error", "error");
     }
   };
 
-  const handleCreateRelation = () => {
+  const handleCreateRelation = async () => {
     if (!relationFromTable || !relationToTable) {
-      alert("Please select both tables");
+      await showAlert("Please select both tables");
       return;
     }
 
@@ -262,7 +303,7 @@ function App() {
       const fkColumnName = relationFromColumn || `${relationToTable}_id`;
 
       if (tableObj.schema.columns[fkColumnName]) {
-        alert(`Column "${fkColumnName}" already exists`);
+        await showAlert(`Column "${fkColumnName}" already exists`);
         return;
       }
 
@@ -286,16 +327,17 @@ function App() {
       setOnDeleteAction("restrict");
       setShowCreateRelation(false);
     } catch (error) {
-      alert(`Error creating relation: ${error.message}`);
+      await showAlert(`Error creating relation: ${error.message}`, "Error", "error");
     }
   };
 
-  const handleDeleteColumn = (tableName, colName) => {
+  const handleDeleteColumn = async (tableName, colName) => {
     if (colName === "id") {
-      alert("Cannot delete id column (primary key)");
+      await showAlert("Cannot delete id column (primary key)");
       return;
     }
-    if (confirm(`Delete column "${colName}"?`)) {
+    const confirmed = await showConfirm(`Delete column "${colName}"?`, "Delete Column");
+    if (confirmed) {
       try {
         const updatedDb = loadDB();
         const tableObj = updatedDb.tables[tableName];
@@ -309,12 +351,12 @@ function App() {
         saveDB(updatedDb);
         refreshDb();
       } catch (error) {
-        alert(`Error deleting column: ${error.message}`);
+        await showAlert(`Error deleting column: ${error.message}`, "Error", "error");
       }
     }
   };
 
-  const handleAddRow = () => {
+  const handleAddRow = async () => {
     if (!selectedTable) return;
 
     try {
@@ -326,17 +368,18 @@ function App() {
       setNewRow({});
       setShowAddRow(false);
     } catch (error) {
-      alert(`Error adding row: ${error.message}`);
+      await showAlert(`Error adding row: ${error.message}`, "Error", "error");
     }
   };
 
-  const handleDeleteRow = (tableName, rowId) => {
-    if (confirm("Delete this row?")) {
+  const handleDeleteRow = async (tableName, rowId) => {
+    const confirmed = await showConfirm("Delete this row?", "Delete Row");
+    if (confirmed) {
       try {
         deleteRow(tableName, rowId);
         refreshDb();
       } catch (error) {
-        alert(`Error deleting row: ${error.message}`);
+        await showAlert(`Error deleting row: ${error.message}`, "Error", "error");
       }
     }
   };
@@ -351,7 +394,7 @@ function App() {
     }
   };
 
-  const handleCellSave = (tableName, rowId, column) => {
+  const handleCellSave = async (tableName, rowId, column) => {
     try {
       let value = editValue.trim();
 
@@ -369,7 +412,7 @@ function App() {
       setEditingCell(null);
       setEditValue("");
     } catch (error) {
-      alert(`Error updating cell: ${error.message}`);
+      await showAlert(`Error updating cell: ${error.message}`, "Error", "error");
       setEditingCell(null);
       setEditValue("");
     }
@@ -463,20 +506,21 @@ function App() {
 
   const tableNames = Object.keys(db.tables || {});
 
-  const handleClearDatabase = () => {
+  const handleClearDatabase = async () => {
     const confirmMessage =
       "Are you sure you want to clear the entire database?\n\n" +
       "This will delete ALL tables and data. This action cannot be undone!\n\n" +
       "Consider exporting your data first if you want to keep a backup.";
 
-    if (confirm(confirmMessage)) {
+    const confirmed = await showConfirm(confirmMessage, "Clear Database");
+    if (confirmed) {
       try {
         localStorage.removeItem("MiniDB");
         refreshDb();
         setSelectedTable(null);
-        alert("Database cleared successfully!");
+        await showAlert("Database cleared successfully!", "Success", "success");
       } catch (error) {
-        alert(`Error clearing database: ${error.message}`);
+        await showAlert(`Error clearing database: ${error.message}`, "Error", "error");
       }
     }
   };
@@ -486,20 +530,21 @@ function App() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const jsonString = e.target.result;
-        const overwrite = confirm(
+        const overwrite = await showConfirm(
           "Import database?\n\n" +
             "OK = Replace all existing data\n" +
-            "Cancel = Merge with existing data"
+            "Cancel = Merge with existing data",
+          "Import Database"
         );
 
         importDatabase(jsonString, overwrite);
         refreshDb();
-        alert("Database imported successfully!");
+        await showAlert("Database imported successfully!", "Success", "success");
       } catch (error) {
-        alert(`Error importing database: ${error.message}`);
+        await showAlert(`Error importing database: ${error.message}`, "Error", "error");
       }
     };
     reader.readAsText(file);
@@ -524,11 +569,13 @@ function App() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      alert(
-        "Sample dataset downloaded! You can import it to restore the demo database."
+      await showAlert(
+        "Sample dataset downloaded! You can import it to restore the demo database.",
+        "Download Complete",
+        "success"
       );
     } catch (error) {
-      alert(`Error downloading sample dataset: ${error.message}`);
+      await showAlert(`Error downloading sample dataset: ${error.message}`, "Error", "error");
     }
   };
 
@@ -714,6 +761,7 @@ function App() {
               result={result}
               resultsMenuOpen={resultsMenuOpen}
               setResultsMenuOpen={setResultsMenuOpen}
+              showAlert={showAlert}
             />
           </div>
         )}
@@ -730,6 +778,7 @@ function App() {
         handleCreateTable={handleCreateTable}
         initialColumns={initialColumns}
         setInitialColumns={setInitialColumns}
+        showAlert={showAlert}
       />
 
       <AddRowModal
@@ -788,6 +837,27 @@ function App() {
         setShowSuggestedQueriesModal={setShowSuggestedQueriesModal}
         suggestedQueries={suggestedQueries}
         setQuery={setQuery}
+      />
+
+      <AlertModal
+        show={alertState.show}
+        title={alertState.title}
+        message={alertState.message}
+        type="alert"
+        variant={alertState.variant}
+        onConfirm={alertState.onConfirm}
+        confirmText="OK"
+      />
+
+      <AlertModal
+        show={confirmState.show}
+        title={confirmState.title}
+        message={confirmState.message}
+        type="confirm"
+        onConfirm={confirmState.onConfirm}
+        onCancel={confirmState.onCancel}
+        confirmText="OK"
+        cancelText="Cancel"
       />
     </div>
   );

@@ -11,27 +11,28 @@ export default function CreateTableModal({
   handleCreateTable,
   initialColumns,
   setInitialColumns,
+  showAlert,
 }) {
   const [newColumnName, setNewColumnName] = useState("");
   const [newColumnType, setNewColumnType] = useState("string");
 
   if (!showCreateTable) return null;
 
-  const handleAddInitialColumn = () => {
+  const handleAddInitialColumn = async () => {
     if (!newColumnName.trim()) {
-      alert("Please enter a column name");
+      await showAlert("Please enter a column name");
       return;
     }
     
     const normalizedNewName = newColumnName.trim().toLowerCase();
     
     if (normalizedNewName === "id") {
-      alert("Column name 'id' is reserved for the primary key");
+      await showAlert("Column name 'id' is reserved for the primary key");
       return;
     }
     
     if (initialColumns.some(col => col.name.trim().toLowerCase() === normalizedNewName)) {
-      alert("Column name already exists");
+      await showAlert("Column name already exists");
       return;
     }
 

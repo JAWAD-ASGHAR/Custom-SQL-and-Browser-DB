@@ -1,16 +1,14 @@
 import React from "react";
 
-export default function QueryResults({ result, resultsMenuOpen, setResultsMenuOpen }) {
-  const handleCopyJSON = () => {
+export default function QueryResults({ result, resultsMenuOpen, setResultsMenuOpen, showAlert }) {
+  const handleCopyJSON = async () => {
     const jsonData = JSON.stringify(result.data, null, 2);
-    navigator.clipboard
-      .writeText(jsonData)
-      .then(() => {
-        alert("Results copied to clipboard!");
-      })
-      .catch(() => {
-        alert("Failed to copy to clipboard");
-      });
+    try {
+      await navigator.clipboard.writeText(jsonData);
+      await showAlert("Results copied to clipboard!", "Success", "success");
+    } catch (error) {
+      await showAlert("Failed to copy to clipboard", "Error", "error");
+    }
   };
 
   const handleExportCSV = () => {
