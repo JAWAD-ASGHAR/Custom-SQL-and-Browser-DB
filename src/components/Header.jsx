@@ -74,7 +74,7 @@ export default function Header({
         </button>
       </div>
 
-      <div className="lg:hidden relative flex-shrink-0 z-50">
+      <div className="lg:hidden relative flex-shrink-0 z-40">
         <button
           onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
           className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-xs font-medium transition-colors"
@@ -87,7 +87,7 @@ export default function Header({
               className="fixed inset-0 z-40"
               onClick={() => setHeaderMenuOpen(false)}
             />
-            <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-50">
+            <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-40">
               <button
                 onClick={() => {
                   handleDownloadSample();

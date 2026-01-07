@@ -57,7 +57,7 @@ export default function TableView({
             </button>
           </div>
 
-          <div className="sm:hidden relative flex-shrink-0 z-50">
+          <div className="sm:hidden relative flex-shrink-0 z-40">
             <button
               onClick={() => setTableActionsMenuOpen(!tableActionsMenuOpen)}
               className="px-3 py-1.5 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-white rounded-md text-sm font-medium transition-colors"
@@ -70,7 +70,7 @@ export default function TableView({
                   className="fixed inset-0 z-40"
                   onClick={() => setTableActionsMenuOpen(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-50">
+                <div className="absolute right-0 top-full mt-2 w-40 bg-[#1a1a1a] border border-[#2a2a2a] rounded-md shadow-lg z-40">
                   <button
                     onClick={() => {
                       setRelationFromTable(selectedTable);
