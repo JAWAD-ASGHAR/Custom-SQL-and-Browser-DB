@@ -1,0 +1,1065 @@
+{
+  "meta": {
+    "version": "1.0",
+    "createdAt": "2026-01-07T10:21:15.122Z",
+    "description": "Sample Online Store Database"
+  },
+  "tables": {
+    "users": {
+      "name": "users",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {}
+      },
+      "rows": {
+        "3c7ab61b-f3f5-4952-bf20-143d0416819b": {
+          "id": "3c7ab61b-f3f5-4952-bf20-143d0416819b",
+          "username": "johndoe",
+          "email": "john.doe@email.com",
+          "password": "hashed_password_1",
+          "firstName": "John",
+          "lastName": "Doe",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "3863169e-b950-45cf-bd3c-b8305f769c6c": {
+          "id": "3863169e-b950-45cf-bd3c-b8305f769c6c",
+          "username": "janesmith",
+          "email": "jane.smith@email.com",
+          "password": "hashed_password_2",
+          "firstName": "Jane",
+          "lastName": "Smith",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "b7cfdf18-5086-49ee-bee6-dcd1a0c29684": {
+          "id": "b7cfdf18-5086-49ee-bee6-dcd1a0c29684",
+          "username": "bobjohnson",
+          "email": "bob.johnson@email.com",
+          "password": "hashed_password_3",
+          "firstName": "Bob",
+          "lastName": "Johnson",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "adc26511-01f5-403a-b4aa-4eec872ffdb0": {
+          "id": "adc26511-01f5-403a-b4aa-4eec872ffdb0",
+          "username": "alicewilliams",
+          "email": "alice.williams@email.com",
+          "password": "hashed_password_4",
+          "firstName": "Alice",
+          "lastName": "Williams",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "d9766e95-0cdc-4792-9abd-0fe06a951046": {
+          "id": "d9766e95-0cdc-4792-9abd-0fe06a951046",
+          "username": "charliebrown",
+          "email": "charlie.brown@email.com",
+          "password": "hashed_password_5",
+          "firstName": "Charlie",
+          "lastName": "Brown",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "f7e831e7-9de3-41cf-afa6-5499d00915ab": {
+          "id": "f7e831e7-9de3-41cf-afa6-5499d00915ab",
+          "username": "adminuser",
+          "email": "admin@store.com",
+          "password": "hashed_admin_password",
+          "firstName": "Admin",
+          "lastName": "User",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "d2d381cd-346f-48c4-b157-0a9f12124a09": {
+          "id": "d2d381cd-346f-48c4-b157-0a9f12124a09",
+          "username": "manageruser",
+          "email": "manager@store.com",
+          "password": "hashed_manager_password",
+          "firstName": "Manager",
+          "lastName": "User",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "9df8dee6-b2f3-4756-ab25-26ccfcac88f4": {
+          "id": "9df8dee6-b2f3-4756-ab25-26ccfcac88f4",
+          "username": "supportstaff",
+          "email": "support@store.com",
+          "password": "hashed_support_password",
+          "firstName": "Support",
+          "lastName": "Staff",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        }
+      }
+    },
+    "customers": {
+      "name": "customers",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "phone": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "userId": {
+            "references": "users.id",
+            "onDelete": "cascade"
+          }
+        }
+      },
+      "rows": {
+        "cfd4bc54-9a94-4507-9e6c-bbef310cd57d": {
+          "id": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "phone": "555-0101",
+          "userId": "3c7ab61b-f3f5-4952-bf20-143d0416819b",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "d5973052-c5e7-4022-b01b-f04d04860b55": {
+          "id": "d5973052-c5e7-4022-b01b-f04d04860b55",
+          "phone": "555-0102",
+          "userId": "3863169e-b950-45cf-bd3c-b8305f769c6c",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "eed93d96-96cf-435c-973e-3e3f5f62de11": {
+          "id": "eed93d96-96cf-435c-973e-3e3f5f62de11",
+          "phone": "555-0103",
+          "userId": "b7cfdf18-5086-49ee-bee6-dcd1a0c29684",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "c92e7241-a967-4266-8ceb-bee9d9b9a8d3": {
+          "id": "c92e7241-a967-4266-8ceb-bee9d9b9a8d3",
+          "phone": "555-0104",
+          "userId": "adc26511-01f5-403a-b4aa-4eec872ffdb0",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "efebd3cb-a5fa-4355-bcab-d0d52e8aaa18": {
+          "id": "efebd3cb-a5fa-4355-bcab-d0d52e8aaa18",
+          "phone": "555-0105",
+          "userId": "d9766e95-0cdc-4792-9abd-0fe06a951046",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        }
+      }
+    },
+    "admins": {
+      "name": "admins",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "role": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "userId": {
+            "references": "users.id",
+            "onDelete": "cascade"
+          }
+        }
+      },
+      "rows": {
+        "5d185bc7-f94e-443c-b3cb-bb4f3669bc78": {
+          "id": "5d185bc7-f94e-443c-b3cb-bb4f3669bc78",
+          "role": "superadmin",
+          "userId": "f7e831e7-9de3-41cf-afa6-5499d00915ab",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "b08d5eb0-085a-4db4-91c0-4dd85504cdc7": {
+          "id": "b08d5eb0-085a-4db4-91c0-4dd85504cdc7",
+          "role": "manager",
+          "userId": "d2d381cd-346f-48c4-b157-0a9f12124a09",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "633ea4b9-78fa-40ad-82cf-b8affc228e9a": {
+          "id": "633ea4b9-78fa-40ad-82cf-b8affc228e9a",
+          "role": "support",
+          "userId": "9df8dee6-b2f3-4756-ab25-26ccfcac88f4",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        }
+      }
+    },
+    "categories": {
+      "name": "categories",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {}
+      },
+      "rows": {
+        "e21cf89f-0510-4f94-bc59-a4107d36adaa": {
+          "id": "e21cf89f-0510-4f94-bc59-a4107d36adaa",
+          "name": "Electronics",
+          "description": "Electronic devices and accessories",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "15381a57-24d7-434e-8d58-334ea6f2c821": {
+          "id": "15381a57-24d7-434e-8d58-334ea6f2c821",
+          "name": "Clothing",
+          "description": "Apparel and fashion items",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "1b1c57ae-dc06-48d4-b228-7ff9e609bb9b": {
+          "id": "1b1c57ae-dc06-48d4-b228-7ff9e609bb9b",
+          "name": "Home & Garden",
+          "description": "Home improvement and garden supplies",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "06bc4624-a236-4839-9f27-6d7f46765ac7": {
+          "id": "06bc4624-a236-4839-9f27-6d7f46765ac7",
+          "name": "Books",
+          "description": "Books and reading materials",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        }
+      }
+    },
+    "products": {
+      "name": "products",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "stock": {
+            "type": "number"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "categoryId": {
+            "references": "categories.id",
+            "onDelete": "set-null"
+          }
+        }
+      },
+      "rows": {
+        "7f2c3753-3a8d-46c6-ba65-26800c8ccb42": {
+          "id": "7f2c3753-3a8d-46c6-ba65-26800c8ccb42",
+          "name": "MacBook Pro 16\"",
+          "description": "High-performance laptop with M2 Pro chip, 16GB RAM, 512GB SSD",
+          "price": 2499.99,
+          "stock": 25,
+          "sku": "MBP-16-M2-512",
+          "imageUrl": "/images/macbook-pro.jpg",
+          "categoryId": "e21cf89f-0510-4f94-bc59-a4107d36adaa",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "1a7401dd-50b7-416b-a493-f18a6fb8c6ba": {
+          "id": "1a7401dd-50b7-416b-a493-f18a6fb8c6ba",
+          "name": "Wireless Mouse",
+          "description": "Ergonomic wireless mouse with precision tracking",
+          "price": 29.99,
+          "stock": 150,
+          "sku": "WM-001",
+          "imageUrl": "/images/wireless-mouse.jpg",
+          "categoryId": "e21cf89f-0510-4f94-bc59-a4107d36adaa",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "89b2b9be-09bd-49ef-a174-120ace18430b": {
+          "id": "89b2b9be-09bd-49ef-a174-120ace18430b",
+          "name": "Mechanical Keyboard",
+          "description": "RGB mechanical keyboard with Cherry MX switches",
+          "price": 129.99,
+          "stock": 80,
+          "sku": "KB-MECH-RGB",
+          "imageUrl": "/images/mechanical-keyboard.jpg",
+          "categoryId": "e21cf89f-0510-4f94-bc59-a4107d36adaa",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "d8b02a8c-96fa-4a43-bd0b-931595b3b788": {
+          "id": "d8b02a8c-96fa-4a43-bd0b-931595b3b788",
+          "name": "4K Monitor 27\"",
+          "description": "Ultra HD 4K monitor with HDR support",
+          "price": 449.99,
+          "stock": 40,
+          "sku": "MON-27-4K",
+          "imageUrl": "/images/4k-monitor.jpg",
+          "categoryId": "e21cf89f-0510-4f94-bc59-a4107d36adaa",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "bf085304-059b-4501-bbb7-704330f8ad28": {
+          "id": "bf085304-059b-4501-bbb7-704330f8ad28",
+          "name": "Wireless Earbuds",
+          "description": "Noise-cancelling wireless earbuds with 30hr battery",
+          "price": 199.99,
+          "stock": 120,
+          "sku": "EB-WIRELESS-NC",
+          "imageUrl": "/images/wireless-earbuds.jpg",
+          "categoryId": "e21cf89f-0510-4f94-bc59-a4107d36adaa",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "da0e6f21-727d-4465-8067-657b8b5c6137": {
+          "id": "da0e6f21-727d-4465-8067-657b8b5c6137",
+          "name": "Cotton T-Shirt",
+          "description": "100% organic cotton t-shirt, available in multiple colors",
+          "price": 24.99,
+          "stock": 200,
+          "sku": "TSH-COT-001",
+          "imageUrl": "/images/cotton-tshirt.jpg",
+          "categoryId": "15381a57-24d7-434e-8d58-334ea6f2c821",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "6f08f9a1-4878-4347-89fe-1ff43dd0fb21": {
+          "id": "6f08f9a1-4878-4347-89fe-1ff43dd0fb21",
+          "name": "Denim Jeans",
+          "description": "Classic fit denim jeans, multiple sizes available",
+          "price": 79.99,
+          "stock": 150,
+          "sku": "JNS-DEN-001",
+          "imageUrl": "/images/denim-jeans.jpg",
+          "categoryId": "15381a57-24d7-434e-8d58-334ea6f2c821",
+          "createdAt": "2026-01-07T10:21:15.123Z"
+        },
+        "a301d07e-eaaf-4359-a2db-8a2cc902cdd3": {
+          "id": "a301d07e-eaaf-4359-a2db-8a2cc902cdd3",
+          "name": "Running Shoes",
+          "description": "Lightweight running shoes with cushioned sole",
+          "price": 89.99,
+          "stock": 100,
+          "sku": "SHO-RUN-001",
+          "imageUrl": "/images/running-shoes.jpg",
+          "categoryId": "15381a57-24d7-434e-8d58-334ea6f2c821",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "6a9593f6-1f79-4985-a146-6a0819a59c6b": {
+          "id": "6a9593f6-1f79-4985-a146-6a0819a59c6b",
+          "name": "Coffee Maker",
+          "description": "Programmable coffee maker with thermal carafe",
+          "price": 89.99,
+          "stock": 60,
+          "sku": "CM-PROG-001",
+          "imageUrl": "/images/coffee-maker.jpg",
+          "categoryId": "1b1c57ae-dc06-48d4-b228-7ff9e609bb9b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "5078dd08-f9e5-4a0c-9ff8-004d418f3f51": {
+          "id": "5078dd08-f9e5-4a0c-9ff8-004d418f3f51",
+          "name": "Garden Tool Set",
+          "description": "Complete garden tool set with 10 pieces",
+          "price": 49.99,
+          "stock": 75,
+          "sku": "GT-SET-001",
+          "imageUrl": "/images/garden-tools.jpg",
+          "categoryId": "1b1c57ae-dc06-48d4-b228-7ff9e609bb9b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "808842b6-6525-4389-93ed-71b1e94210e7": {
+          "id": "808842b6-6525-4389-93ed-71b1e94210e7",
+          "name": "JavaScript: The Definitive Guide",
+          "description": "Comprehensive guide to JavaScript programming",
+          "price": 59.99,
+          "stock": 50,
+          "sku": "BK-JS-DEF",
+          "imageUrl": "/images/js-book.jpg",
+          "categoryId": "06bc4624-a236-4839-9f27-6d7f46765ac7",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "afec5525-604a-4c8b-8344-2a04467d8614": {
+          "id": "afec5525-604a-4c8b-8344-2a04467d8614",
+          "name": "Database Design Fundamentals",
+          "description": "Learn database design principles and best practices",
+          "price": 44.99,
+          "stock": 40,
+          "sku": "BK-DB-FUND",
+          "imageUrl": "/images/db-book.jpg",
+          "categoryId": "06bc4624-a236-4839-9f27-6d7f46765ac7",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    },
+    "addresses": {
+      "name": "addresses",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "street": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "zipCode": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "addressType": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "customerId": {
+            "references": "customers.id",
+            "onDelete": "cascade"
+          }
+        }
+      },
+      "rows": {
+        "965a8d94-a223-4071-bded-db7f52954f2c": {
+          "id": "965a8d94-a223-4071-bded-db7f52954f2c",
+          "street": "123 Main Street",
+          "city": "New York",
+          "state": "NY",
+          "zipCode": "10001",
+          "country": "USA",
+          "addressType": "shipping",
+          "customerId": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "d403d27b-6831-4dfe-92a0-ff59aba25a74": {
+          "id": "d403d27b-6831-4dfe-92a0-ff59aba25a74",
+          "street": "123 Main Street",
+          "city": "New York",
+          "state": "NY",
+          "zipCode": "10001",
+          "country": "USA",
+          "addressType": "billing",
+          "customerId": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "3df7fe10-3bb9-476f-bd55-9bdd54f79409": {
+          "id": "3df7fe10-3bb9-476f-bd55-9bdd54f79409",
+          "street": "456 Oak Avenue",
+          "city": "Los Angeles",
+          "state": "CA",
+          "zipCode": "90001",
+          "country": "USA",
+          "addressType": "shipping",
+          "customerId": "d5973052-c5e7-4022-b01b-f04d04860b55",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "942994e4-632b-4c9b-a391-da395921e6ae": {
+          "id": "942994e4-632b-4c9b-a391-da395921e6ae",
+          "street": "789 Pine Road",
+          "city": "Chicago",
+          "state": "IL",
+          "zipCode": "60601",
+          "country": "USA",
+          "addressType": "shipping",
+          "customerId": "eed93d96-96cf-435c-973e-3e3f5f62de11",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "51aa0c68-8f9d-4370-bf2e-213d9ca83326": {
+          "id": "51aa0c68-8f9d-4370-bf2e-213d9ca83326",
+          "street": "321 Elm Street",
+          "city": "Houston",
+          "state": "TX",
+          "zipCode": "77001",
+          "country": "USA",
+          "addressType": "shipping",
+          "customerId": "c92e7241-a967-4266-8ceb-bee9d9b9a8d3",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    },
+    "carts": {
+      "name": "carts",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          },
+          "updatedAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "customerId": {
+            "references": "customers.id",
+            "onDelete": "cascade"
+          }
+        }
+      },
+      "rows": {
+        "90fa01e2-8fdd-4150-ad38-ccdf997a2c55": {
+          "id": "90fa01e2-8fdd-4150-ad38-ccdf997a2c55",
+          "status": "active",
+          "customerId": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "createdAt": "2026-01-07T10:21:15.124Z",
+          "updatedAt": null
+        },
+        "79d88e48-b8c1-4d2c-8a7a-7422e80e7c41": {
+          "id": "79d88e48-b8c1-4d2c-8a7a-7422e80e7c41",
+          "status": "active",
+          "customerId": "d5973052-c5e7-4022-b01b-f04d04860b55",
+          "createdAt": "2026-01-07T10:21:15.124Z",
+          "updatedAt": null
+        },
+        "9c7f2453-40ad-4fd2-8234-6f30fb5876d1": {
+          "id": "9c7f2453-40ad-4fd2-8234-6f30fb5876d1",
+          "status": "abandoned",
+          "customerId": "eed93d96-96cf-435c-973e-3e3f5f62de11",
+          "createdAt": "2026-01-07T10:21:15.124Z",
+          "updatedAt": null
+        }
+      }
+    },
+    "cart_items": {
+      "name": "cart_items",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "cartId": {
+            "type": "uuid"
+          },
+          "productId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "cartId": {
+            "references": "carts.id",
+            "onDelete": "cascade"
+          },
+          "productId": {
+            "references": "products.id",
+            "onDelete": "restrict"
+          }
+        }
+      },
+      "rows": {
+        "44b291a4-7786-448f-8574-13ac40f0300d": {
+          "id": "44b291a4-7786-448f-8574-13ac40f0300d",
+          "quantity": 1,
+          "price": 2499.99,
+          "cartId": "90fa01e2-8fdd-4150-ad38-ccdf997a2c55",
+          "productId": "7f2c3753-3a8d-46c6-ba65-26800c8ccb42",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "39677f33-97c4-43e9-b3f8-f14a1299754d": {
+          "id": "39677f33-97c4-43e9-b3f8-f14a1299754d",
+          "quantity": 2,
+          "price": 29.99,
+          "cartId": "90fa01e2-8fdd-4150-ad38-ccdf997a2c55",
+          "productId": "1a7401dd-50b7-416b-a493-f18a6fb8c6ba",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "9f76a561-f1f5-4674-b043-b04a3e304e8b": {
+          "id": "9f76a561-f1f5-4674-b043-b04a3e304e8b",
+          "quantity": 1,
+          "price": 129.99,
+          "cartId": "79d88e48-b8c1-4d2c-8a7a-7422e80e7c41",
+          "productId": "89b2b9be-09bd-49ef-a174-120ace18430b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "58f34599-5508-42f8-a45f-e62a9aa5b234": {
+          "id": "58f34599-5508-42f8-a45f-e62a9aa5b234",
+          "quantity": 1,
+          "price": 449.99,
+          "cartId": "79d88e48-b8c1-4d2c-8a7a-7422e80e7c41",
+          "productId": "d8b02a8c-96fa-4a43-bd0b-931595b3b788",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "cc5e5973-ff2d-4843-ab4c-f98271796a5a": {
+          "id": "cc5e5973-ff2d-4843-ab4c-f98271796a5a",
+          "quantity": 3,
+          "price": 24.99,
+          "cartId": "9c7f2453-40ad-4fd2-8234-6f30fb5876d1",
+          "productId": "da0e6f21-727d-4465-8067-657b8b5c6137",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    },
+    "orders": {
+      "name": "orders",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "orderNumber": {
+            "type": "string"
+          },
+          "total": {
+            "type": "number"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "tax": {
+            "type": "number"
+          },
+          "shipping": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "uuid"
+          },
+          "shippingAddressId": {
+            "type": "uuid"
+          },
+          "billingAddressId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          },
+          "shippedAt": {
+            "type": "date"
+          },
+          "deliveredAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "customerId": {
+            "references": "customers.id",
+            "onDelete": "restrict"
+          },
+          "shippingAddressId": {
+            "references": "addresses.id",
+            "onDelete": "set-null"
+          },
+          "billingAddressId": {
+            "references": "addresses.id",
+            "onDelete": "set-null"
+          }
+        }
+      },
+      "rows": {
+        "25232190-a173-41f1-812f-c439178add63": {
+          "id": "25232190-a173-41f1-812f-c439178add63",
+          "orderNumber": "ORD-2024-001",
+          "subtotal": 1059.97,
+          "tax": 84.8,
+          "shipping": 15,
+          "total": 1159.77,
+          "status": "delivered",
+          "customerId": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "shippingAddressId": "965a8d94-a223-4071-bded-db7f52954f2c",
+          "billingAddressId": "d403d27b-6831-4dfe-92a0-ff59aba25a74",
+          "shippedAt": "2024-01-16T00:00:00.000Z",
+          "deliveredAt": "2024-01-18T00:00:00.000Z",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "105bbd9b-3714-4cad-be1f-900d1eada21b": {
+          "id": "105bbd9b-3714-4cad-be1f-900d1eada21b",
+          "orderNumber": "ORD-2024-002",
+          "subtotal": 579.98,
+          "tax": 46.4,
+          "shipping": 10,
+          "total": 636.38,
+          "status": "shipped",
+          "customerId": "d5973052-c5e7-4022-b01b-f04d04860b55",
+          "shippingAddressId": "3df7fe10-3bb9-476f-bd55-9bdd54f79409",
+          "billingAddressId": "3df7fe10-3bb9-476f-bd55-9bdd54f79409",
+          "shippedAt": "2024-01-20T00:00:00.000Z",
+          "createdAt": "2026-01-07T10:21:15.124Z",
+          "deliveredAt": null
+        },
+        "6897e737-c1a9-4d19-87c7-860bde585ed1": {
+          "id": "6897e737-c1a9-4d19-87c7-860bde585ed1",
+          "orderNumber": "ORD-2024-003",
+          "subtotal": 79.99,
+          "tax": 6.4,
+          "shipping": 5,
+          "total": 91.39,
+          "status": "processing",
+          "customerId": "eed93d96-96cf-435c-973e-3e3f5f62de11",
+          "shippingAddressId": "942994e4-632b-4c9b-a391-da395921e6ae",
+          "billingAddressId": "942994e4-632b-4c9b-a391-da395921e6ae",
+          "createdAt": "2026-01-07T10:21:15.124Z",
+          "shippedAt": null,
+          "deliveredAt": null
+        },
+        "94cb90ec-b221-4b91-9d03-c281b613897d": {
+          "id": "94cb90ec-b221-4b91-9d03-c281b613897d",
+          "orderNumber": "ORD-2024-004",
+          "subtotal": 149.98,
+          "tax": 12,
+          "shipping": 8,
+          "total": 169.98,
+          "status": "completed",
+          "customerId": "c92e7241-a967-4266-8ceb-bee9d9b9a8d3",
+          "shippingAddressId": "51aa0c68-8f9d-4370-bf2e-213d9ca83326",
+          "billingAddressId": "51aa0c68-8f9d-4370-bf2e-213d9ca83326",
+          "shippedAt": "2024-01-22T00:00:00.000Z",
+          "deliveredAt": "2024-01-24T00:00:00.000Z",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    },
+    "order_items": {
+      "name": "order_items",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "orderId": {
+            "type": "uuid"
+          },
+          "productId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "orderId": {
+            "references": "orders.id",
+            "onDelete": "cascade"
+          },
+          "productId": {
+            "references": "products.id",
+            "onDelete": "restrict"
+          }
+        }
+      },
+      "rows": {
+        "c7162e12-3569-4338-b4c1-f57393c0a324": {
+          "id": "c7162e12-3569-4338-b4c1-f57393c0a324",
+          "quantity": 1,
+          "price": 999.99,
+          "total": 999.99,
+          "orderId": "25232190-a173-41f1-812f-c439178add63",
+          "productId": "7f2c3753-3a8d-46c6-ba65-26800c8ccb42",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "6ccfff8b-020b-4c63-bf3f-c97f8f4966d4": {
+          "id": "6ccfff8b-020b-4c63-bf3f-c97f8f4966d4",
+          "quantity": 2,
+          "price": 29.99,
+          "total": 59.98,
+          "orderId": "25232190-a173-41f1-812f-c439178add63",
+          "productId": "1a7401dd-50b7-416b-a493-f18a6fb8c6ba",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "16ada5fd-d6c5-4a78-8afc-87cb40c70254": {
+          "id": "16ada5fd-d6c5-4a78-8afc-87cb40c70254",
+          "quantity": 1,
+          "price": 129.99,
+          "total": 129.99,
+          "orderId": "105bbd9b-3714-4cad-be1f-900d1eada21b",
+          "productId": "89b2b9be-09bd-49ef-a174-120ace18430b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "f1b4a0b4-d2b3-4f5d-9385-d90c4ebb87a3": {
+          "id": "f1b4a0b4-d2b3-4f5d-9385-d90c4ebb87a3",
+          "quantity": 1,
+          "price": 449.99,
+          "total": 449.99,
+          "orderId": "105bbd9b-3714-4cad-be1f-900d1eada21b",
+          "productId": "d8b02a8c-96fa-4a43-bd0b-931595b3b788",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "8fa5e97b-e69c-4a7b-b243-1692b9cdd97a": {
+          "id": "8fa5e97b-e69c-4a7b-b243-1692b9cdd97a",
+          "quantity": 1,
+          "price": 79.99,
+          "total": 79.99,
+          "orderId": "6897e737-c1a9-4d19-87c7-860bde585ed1",
+          "productId": "6f08f9a1-4878-4347-89fe-1ff43dd0fb21",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "0f05f549-e891-405b-8b9e-2a631c298a22": {
+          "id": "0f05f549-e891-405b-8b9e-2a631c298a22",
+          "quantity": 1,
+          "price": 89.99,
+          "total": 89.99,
+          "orderId": "94cb90ec-b221-4b91-9d03-c281b613897d",
+          "productId": "6a9593f6-1f79-4985-a146-6a0819a59c6b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "80b1c5a8-6ee5-4fea-8f89-e98bd0c80f50": {
+          "id": "80b1c5a8-6ee5-4fea-8f89-e98bd0c80f50",
+          "quantity": 1,
+          "price": 59.99,
+          "total": 59.99,
+          "orderId": "94cb90ec-b221-4b91-9d03-c281b613897d",
+          "productId": "808842b6-6525-4389-93ed-71b1e94210e7",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    },
+    "payments": {
+      "name": "payments",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "amount": {
+            "type": "number"
+          },
+          "paymentMethod": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "orderId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "orderId": {
+            "references": "orders.id",
+            "onDelete": "cascade"
+          }
+        }
+      },
+      "rows": {
+        "59a4cc16-1275-42a8-bfe6-25395b0f5c0d": {
+          "id": "59a4cc16-1275-42a8-bfe6-25395b0f5c0d",
+          "amount": 1159.77,
+          "paymentMethod": "credit_card",
+          "status": "completed",
+          "transactionId": "TXN-001-2024",
+          "orderId": "25232190-a173-41f1-812f-c439178add63",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "65e049d5-144e-4dc7-a856-19029a1de863": {
+          "id": "65e049d5-144e-4dc7-a856-19029a1de863",
+          "amount": 636.38,
+          "paymentMethod": "paypal",
+          "status": "completed",
+          "transactionId": "TXN-002-2024",
+          "orderId": "105bbd9b-3714-4cad-be1f-900d1eada21b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "e1c9c5ed-f604-4208-8ac0-603d0ddca538": {
+          "id": "e1c9c5ed-f604-4208-8ac0-603d0ddca538",
+          "amount": 91.39,
+          "paymentMethod": "credit_card",
+          "status": "pending",
+          "transactionId": "TXN-003-2024",
+          "orderId": "6897e737-c1a9-4d19-87c7-860bde585ed1",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "4eb7a839-c625-4536-8f70-d3d65a1f2478": {
+          "id": "4eb7a839-c625-4536-8f70-d3d65a1f2478",
+          "amount": 169.98,
+          "paymentMethod": "bank_transfer",
+          "status": "completed",
+          "transactionId": "TXN-004-2024",
+          "orderId": "94cb90ec-b221-4b91-9d03-c281b613897d",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    },
+    "reviews": {
+      "name": "reviews",
+      "schema": {
+        "columns": {
+          "id": {
+            "type": "uuid",
+            "primary": true
+          },
+          "rating": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "uuid"
+          },
+          "productId": {
+            "type": "uuid"
+          },
+          "orderId": {
+            "type": "uuid"
+          },
+          "createdAt": {
+            "type": "date"
+          }
+        },
+        "foreignKeys": {
+          "customerId": {
+            "references": "customers.id",
+            "onDelete": "cascade"
+          },
+          "productId": {
+            "references": "products.id",
+            "onDelete": "cascade"
+          },
+          "orderId": {
+            "references": "orders.id",
+            "onDelete": "set-null"
+          }
+        }
+      },
+      "rows": {
+        "5c3a402c-d9ae-473f-b606-bde3525160b4": {
+          "id": "5c3a402c-d9ae-473f-b606-bde3525160b4",
+          "rating": 5,
+          "title": "Excellent laptop!",
+          "comment": "Fast performance, great battery life. Highly recommend!",
+          "customerId": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "productId": "7f2c3753-3a8d-46c6-ba65-26800c8ccb42",
+          "orderId": "25232190-a173-41f1-812f-c439178add63",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "19caff60-61aa-4c2b-b25f-eb091a8ff641": {
+          "id": "19caff60-61aa-4c2b-b25f-eb091a8ff641",
+          "rating": 4,
+          "title": "Good mouse",
+          "comment": "Comfortable to use, battery lasts long. Minor tracking issues sometimes.",
+          "customerId": "cfd4bc54-9a94-4507-9e6c-bbef310cd57d",
+          "productId": "1a7401dd-50b7-416b-a493-f18a6fb8c6ba",
+          "orderId": "25232190-a173-41f1-812f-c439178add63",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "6406c075-f8b6-4542-8ba5-3735684ba81c": {
+          "id": "6406c075-f8b6-4542-8ba5-3735684ba81c",
+          "rating": 5,
+          "title": "Amazing keyboard",
+          "comment": "Best mechanical keyboard I've used. The RGB lighting is beautiful!",
+          "customerId": "d5973052-c5e7-4022-b01b-f04d04860b55",
+          "productId": "89b2b9be-09bd-49ef-a174-120ace18430b",
+          "orderId": "105bbd9b-3714-4cad-be1f-900d1eada21b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "f26d51b4-9000-453d-bb7b-f72303a24f56": {
+          "id": "f26d51b4-9000-453d-bb7b-f72303a24f56",
+          "rating": 5,
+          "title": "Perfect monitor",
+          "comment": "Crystal clear display, great for work and gaming.",
+          "customerId": "d5973052-c5e7-4022-b01b-f04d04860b55",
+          "productId": "d8b02a8c-96fa-4a43-bd0b-931595b3b788",
+          "orderId": "105bbd9b-3714-4cad-be1f-900d1eada21b",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        },
+        "8b544cb3-e941-4150-8340-719fbc5a37e2": {
+          "id": "8b544cb3-e941-4150-8340-719fbc5a37e2",
+          "rating": 4,
+          "title": "Great coffee maker",
+          "comment": "Makes excellent coffee. Easy to program and use.",
+          "customerId": "c92e7241-a967-4266-8ceb-bee9d9b9a8d3",
+          "productId": "6a9593f6-1f79-4985-a146-6a0819a59c6b",
+          "orderId": "94cb90ec-b221-4b91-9d03-c281b613897d",
+          "createdAt": "2026-01-07T10:21:15.124Z"
+        }
+      }
+    }
+  }
+}

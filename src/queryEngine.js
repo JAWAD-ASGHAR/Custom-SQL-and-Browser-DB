@@ -1,14 +1,5 @@
 import { loadDB, getTableRows } from './database';
 
-function recordsEqual(a, b) {
-  const keysA = Object.keys(a).sort();
-  const keysB = Object.keys(b).sort();
-  
-  if (keysA.length !== keysB.length) return false;
-  
-  return keysA.every(key => a[key] === b[key]);
-}
-
 function parseValue(str) {
   const trimmed = str.trim();
   if (!isNaN(Number(trimmed)) && trimmed !== '') {

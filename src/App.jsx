@@ -11,7 +11,6 @@ import {
   deleteRow,
   exportDatabase,
   importDatabase,
-  getSampleDataset,
 } from "./database";
 import { executeQuery } from "./queryEngine";
 import Sidebar from "./components/Sidebar";
@@ -510,8 +509,11 @@ function App() {
 
   const handleDownloadSample = async () => {
     try {
-      const sampleDb = getSampleDataset();
-      const jsonData = JSON.stringify(sampleDb, null, 2);
+      const response = await fetch("/minidb-sample-dataset.json");
+      if (!response.ok) {
+        throw new Error("Failed to load sample dataset");
+      }
+      const jsonData = await response.text();
       const blob = new Blob([jsonData], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -526,15 +528,7 @@ function App() {
         "Sample dataset downloaded! You can import it to restore the demo database."
       );
     } catch (error) {
-      alert(`Error generating sample dataset: ${error.message}`);
-      try {
-        const currentDb = loadDB();
-        if (Object.keys(currentDb.tables).length === 0) {
-          refreshDb();
-        }
-      } catch (e) {
-        console.error("Error restoring database:", e);
-      }
+      alert(`Error downloading sample dataset: ${error.message}`);
     }
   };
 
