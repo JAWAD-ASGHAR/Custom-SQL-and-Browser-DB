@@ -602,8 +602,8 @@ function App() {
     { name: "UNION: Combine column values", query: "UNION customers admins ON userId" },
     { name: "INTERSECT: Find common values", query: "INTERSECT cart_items order_items ON productId" },
     { name: "DIFF: Find unique values", query: "DIFF cart_items order_items ON productId" },
-    { name: "DELETE: Remove rows", query: "DELETE FROM users WHERE email = \"test@example.com\"" },
-    { name: "DROP: Remove table", query: "DROP TABLE users" },
+    { name: "DELETE: Remove rows", query: "DELETE FROM users WHERE email = \"john.doe@email.com\"" },
+    { name: "DROP: Remove table", query: "DROP TABLE payments" },
     { name: "SHOW TABLES: List all tables", query: "SHOW TABLES" },
     { name: "DROP DATABASE: Clear all tables", query: "DROP DATABASE" },
   ];
