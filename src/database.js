@@ -276,3 +276,73 @@ export function importDatabase(jsonString, overwrite = false) {
     throw new Error(`Failed to import database: ${error.message}`);
   }
 }
+
+export function dropTable(tableName) {
+  const db = loadDB();
+  
+  if (!db.tables[tableName]) {
+    throw new Error(`Table "${tableName}" does not exist`);
+  }
+
+  // Check if any other table references this table via foreign keys
+  for (const otherTableName in db.tables) {
+    if (otherTableName === tableName) continue;
+    
+    const otherTable = db.tables[otherTableName];
+    for (const fkColumn in otherTable.schema.foreignKeys) {
+      const fk = otherTable.schema.foreignKeys[fkColumn];
+      const [refTable] = fk.references.split('.');
+      
+      if (refTable === tableName) {
+        throw new Error(`Cannot drop table "${tableName}": referenced by ${otherTableName}.${fkColumn}`);
+      }
+    }
+  }
+
+  delete db.tables[tableName];
+  saveDB(db);
+}
+
+export function dropColumn(tableName, columnName) {
+  const db = loadDB();
+  const table = db.tables[tableName];
+  
+  if (!table) {
+    throw new Error(`Table "${tableName}" does not exist`);
+  }
+
+  if (!table.schema.columns[columnName]) {
+    throw new Error(`Column "${columnName}" does not exist in table "${tableName}"`);
+  }
+
+  // Prevent dropping primary key
+  if (columnName === 'id') {
+    throw new Error('Cannot drop primary key column "id"');
+  }
+
+  // Prevent dropping columns used as foreign keys
+  if (table.schema.foreignKeys[columnName]) {
+    throw new Error(`Cannot drop column "${columnName}": used as foreign key`);
+  }
+
+  // Remove column from schema
+  delete table.schema.columns[columnName];
+
+  // Remove column from all existing rows
+  for (const rowId in table.rows) {
+    delete table.rows[rowId][columnName];
+  }
+
+  saveDB(db);
+}
+
+export function dropDatabase() {
+  const db = {
+    meta: {
+      version: '1.0',
+      createdAt: new Date().toISOString()
+    },
+    tables: {}
+  };
+  saveDB(db);
+}

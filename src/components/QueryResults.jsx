@@ -14,27 +14,46 @@ export default function QueryResults({ result, resultsMenuOpen, setResultsMenuOp
   const handleExportCSV = () => {
     if (result.data.length === 0) return;
 
-    const headers = Object.keys(result.data[0]);
-    const csvRows = [
-      headers.join(","),
-      ...result.data.map((row) =>
-        headers
-          .map((header) => {
-            const value = row[header];
-            if (value === null || value === undefined) return "";
-            const stringValue = String(value);
-            if (
-              stringValue.includes(",") ||
-              stringValue.includes('"') ||
-              stringValue.includes("\n")
-            ) {
-              return `"${stringValue.replace(/"/g, '""')}"`;
-            }
-            return stringValue;
-          })
-          .join(",")
-      ),
-    ];
+    let csvRows;
+    if (result.type === 'set') {
+      // For set operations, export as single column
+      csvRows = [
+        'value',
+        ...result.data.map((value) => {
+          const stringValue = String(value);
+          if (
+            stringValue.includes(",") ||
+            stringValue.includes('"') ||
+            stringValue.includes("\n")
+          ) {
+            return `"${stringValue.replace(/"/g, '""')}"`;
+          }
+          return stringValue;
+        }),
+      ];
+    } else {
+      const headers = Object.keys(result.data[0]);
+      csvRows = [
+        headers.join(","),
+        ...result.data.map((row) =>
+          headers
+            .map((header) => {
+              const value = row[header];
+              if (value === null || value === undefined) return "";
+              const stringValue = String(value);
+              if (
+                stringValue.includes(",") ||
+                stringValue.includes('"') ||
+                stringValue.includes("\n")
+              ) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+              }
+              return stringValue;
+            })
+            .join(",")
+        ),
+      ];
+    }
 
     const csv = csvRows.join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -67,7 +86,7 @@ export default function QueryResults({ result, resultsMenuOpen, setResultsMenuOp
         <h3 className="text-sm font-semibold text-white">
           {result ? (result.error ? "Error" : "Results") : "Results"}
         </h3>
-        {result && result.data && result.data.length > 0 && (
+        {result && result.data && result.data.length > 0 && result.type !== 'action' && (
           <>
             <div className="hidden lg:flex gap-2">
               <button
@@ -154,50 +173,71 @@ export default function QueryResults({ result, resultsMenuOpen, setResultsMenuOp
               Error: {result.error}
             </p>
           </div>
+        ) : result.type === 'action' ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="bg-[#065f46] border border-[#059669] rounded-md p-4">
+              <p className="text-green-300 text-sm font-medium">
+                {result.message}
+              </p>
+            </div>
+          </div>
         ) : result.data && result.data.length > 0 ? (
           <div className="h-full flex flex-col">
             <p className="text-[#8b8b8b] text-sm mb-4 flex-shrink-0">
-              Found {result.data.length} row(s)
+              Found {result.data.length} {result.type === 'set' ? 'value(s)' : 'row(s)'}
             </p>
             <div className="flex-1 overflow-auto min-h-0">
-              <div className="table-scroll-container w-full h-full">
-                <table className="border-collapse">
-                  <thead>
-                    <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
-                      {Object.keys(result.data[0]).map((col) => (
-                        <th
-                          key={col}
-                          className="border-b border-[#2a2a2a] px-3 py-2 text-left text-xs font-medium text-white whitespace-nowrap"
-                        >
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.data.map((row, idx) => (
-                      <tr
-                        key={idx}
-                        className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors"
-                      >
+              {result.type === 'set' ? (
+                <div className="space-y-1">
+                  {result.data.map((value, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-md px-3 py-2 text-xs text-[#e0e0e0]"
+                    >
+                      {String(value)}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="table-scroll-container w-full h-full">
+                  <table className="border-collapse">
+                    <thead>
+                      <tr className="bg-[#1e1e1e] border-b border-[#2a2a2a]">
                         {Object.keys(result.data[0]).map((col) => (
-                          <td
+                          <th
                             key={col}
-                            className="px-3 py-2 text-xs text-[#e0e0e0]"
+                            className="border-b border-[#2a2a2a] px-3 py-2 text-left text-xs font-medium text-white whitespace-nowrap"
                           >
-                            <div
-                              className="max-w-xs lg:max-w-none truncate lg:whitespace-normal"
-                              title={String(row[col] || "")}
-                            >
-                              {String(row[col] || "")}
-                            </div>
-                          </td>
+                            {col}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {result.data.map((row, idx) => (
+                        <tr
+                          key={idx}
+                          className="border-b border-[#2a2a2a] hover:bg-[#1e1e1e] transition-colors"
+                        >
+                          {Object.keys(result.data[0]).map((col) => (
+                            <td
+                              key={col}
+                              className="px-3 py-2 text-xs text-[#e0e0e0]"
+                            >
+                              <div
+                                className="max-w-xs lg:max-w-none truncate lg:whitespace-normal"
+                                title={String(row[col] || "")}
+                              >
+                                {String(row[col] || "")}
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         ) : (

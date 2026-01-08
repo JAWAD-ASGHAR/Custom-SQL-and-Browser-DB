@@ -580,102 +580,13 @@ function App() {
   };
 
   const suggestedQueries = [
-    { name: "Select all users", query: "SELECT * FROM users" },
-    { name: "Select all customers", query: "SELECT * FROM customers" },
-    { name: "Select all admins", query: "SELECT * FROM admins" },
-    { name: "Select all products", query: "SELECT * FROM products" },
-    {
-      name: "Join customers with users",
-      query: "JOIN customers users ON customers.userId = users.id",
-    },
-    {
-      name: "Join admins with users",
-      query: "JOIN admins users ON admins.userId = users.id",
-    },
-    {
-      name: "Join carts and customers",
-      query: "JOIN carts customers ON carts.customerId = customers.id",
-    },
-    {
-      name: "Join cart items and products",
-      query: "JOIN cart_items products ON cart_items.productId = products.id",
-    },
-    {
-      name: "Join orders and customers",
-      query: "JOIN orders customers ON orders.customerId = customers.id",
-    },
-    {
-      name: "Join products with categories",
-      query: "JOIN products categories ON products.categoryId = categories.id",
-    },
-    {
-      name: "Filter users by email",
-      query: 'SELECT * FROM users WHERE email = "john.doe@email.com"',
-    },
-    {
-      name: "Filter products by price",
-      query: "SELECT * FROM products WHERE price > 100",
-    },
-    { name: "Show all tables", query: "SHOW TABLES" },
-    // Discrete Mathematics: Set Operations - UNION
-    {
-      name: "UNION: Combine customers and admins (all users)",
-      query: "UNION customers admins",
-    },
-    {
-      name: "UNION: Combine all products and categories",
-      query: "UNION products categories",
-    },
-    {
-      name: "UNION: Combine cart items and order items",
-      query: "UNION cart_items order_items",
-    },
-    {
-      name: "UNION: Combine addresses and orders",
-      query: "UNION addresses orders",
-    },
-    // Discrete Mathematics: Set Operations - INTERSECT
-    {
-      name: "INTERSECT: Find common records in customers and admins",
-      query: "INTERSECT customers admins",
-    },
-    {
-      name: "INTERSECT: Find common products in carts and orders",
-      query: "INTERSECT cart_items order_items",
-    },
-    {
-      name: "INTERSECT: Find overlapping addresses and orders",
-      query: "INTERSECT addresses orders",
-    },
-    {
-      name: "INTERSECT: Find common elements in products and categories",
-      query: "INTERSECT products categories",
-    },
-    // Discrete Mathematics: Set Operations - DIFF (Set Difference)
-    {
-      name: "DIFF: Customers not in admins (set difference)",
-      query: "DIFF customers admins",
-    },
-    {
-      name: "DIFF: Admins not in customers (set difference)",
-      query: "DIFF admins customers",
-    },
-    {
-      name: "DIFF: Cart items not in order items",
-      query: "DIFF cart_items order_items",
-    },
-    {
-      name: "DIFF: Order items not in cart items",
-      query: "DIFF order_items cart_items",
-    },
-    {
-      name: "DIFF: Products not in categories",
-      query: "DIFF products categories",
-    },
-    {
-      name: "DIFF: Categories not in products",
-      query: "DIFF categories products",
-    },
+    { name: "SELECT: Query table data", query: "SELECT * FROM users" },
+    { name: "UNION: Combine column values", query: "UNION customers admins ON userId" },
+    { name: "INTERSECT: Find common values", query: "INTERSECT cart_items order_items ON productId" },
+    { name: "DIFF: Find unique values", query: "DIFF customers admins ON userId" },
+    { name: "DELETE: Remove rows", query: "DELETE FROM users WHERE email = \"test@example.com\"" },
+    { name: "DROP: Remove table", query: "DROP TABLE users" },
+    { name: "SHOW TABLES: List all tables", query: "SHOW TABLES" },
   ];
 
   return (

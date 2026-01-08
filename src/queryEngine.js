@@ -1,4 +1,4 @@
-import { loadDB, getTableRows } from './database';
+import { loadDB, getTableRows, deleteRow, dropTable, dropColumn, dropDatabase } from './database';
 
 function parseValue(str) {
   const trimmed = str.trim();
@@ -20,18 +20,13 @@ function evaluateCondition(record, field, operator, value) {
     case '<': return Number(recordValue) < Number(value);
     case '>=': return Number(recordValue) >= Number(value);
     case '<=': return Number(recordValue) <= Number(value);
-    case 'LIKE': {
-      const pattern = value.toString().replace(/%/g, '.*').replace(/_/g, '.');
-      const regex = new RegExp(`^${pattern}$`, 'i');
-      return regex.test(recordValue?.toString() || '');
-    }
     default: return false;
   }
 }
 
 function parseWhere(whereStr) {
   const patterns = [
-    /(\w+)\s*(>=|<=|!=|LIKE)\s*(.+)/i,
+    /(\w+)\s*(>=|<=|!=)\s*(.+)/i,
     /(\w+)\s*(>|<|=)\s*(.+)/,
   ];
   
@@ -106,135 +101,125 @@ function executeSelect(query, db) {
   return { data: result, type: 'table' };
 }
 
-function executeJoin(query, db) {
-  const upper = query.toUpperCase();
-  const parts = query.trim().split(/\s+/);
-  
-  if (parts.length < 4) {
-    return { error: 'JOIN requires: JOIN table1 table2 ON table1.field = table2.field' };
-  }
-
-  const table1Name = parts[1].toLowerCase();
-  const table2Name = parts[2].toLowerCase();
-  
-  if (!db.tables[table1Name] || !db.tables[table2Name]) {
-    return { error: `One or both tables do not exist: ${table1Name}, ${table2Name}` };
-  }
-
-  const onIndex = upper.indexOf('ON');
-  if (onIndex === -1) {
-    return { error: 'JOIN requires ON clause: JOIN table1 table2 ON table1.field = table2.field' };
-  }
-
-  const onClause = query.substring(onIndex + 2).trim();
-  const onMatch = onClause.match(/(\w+)\.(\w+)\s*=\s*(\w+)\.(\w+)/);
-  
-  if (!onMatch) {
-    return { error: 'Invalid ON clause. Use: ON table1.field = table2.field' };
-  }
-
-  const [, table1Ref, field1, table2Ref, field2] = onMatch;
-  
-  let table1Field, table2Field;
-  if (table1Ref.toLowerCase() === table1Name) {
-    table1Field = field1;
-    table2Field = field2;
-  } else if (table1Ref.toLowerCase() === table2Name) {
-    table1Field = field2;
-    table2Field = field1;
-  } else {
-    return { error: `Table reference "${table1Ref}" does not match table names` };
-  }
-
-  const rows1 = getTableRows(table1Name);
-  const rows2 = getTableRows(table2Name);
-
-  const joined = [];
-  for (const record1 of rows1) {
-    for (const record2 of rows2) {
-      if (record1[table1Field] === record2[table2Field]) {
-        const merged = {
-          ...Object.fromEntries(
-            Object.entries(record1).map(([k, v]) => [`${table1Name}_${k}`, v])
-          ),
-          ...Object.fromEntries(
-            Object.entries(record2).map(([k, v]) => [`${table2Name}_${k}`, v])
-          )
-        };
-        joined.push(merged);
-      }
-    }
-  }
-
-  return { data: joined, type: 'join' };
-}
-
 function executeUnion(query, db) {
-  const parts = query.trim().split(/\s+/);
+  const upper = query.toUpperCase();
+  const onIndex = upper.indexOf('ON');
+  
+  if (onIndex === -1) {
+    return { error: 'UNION requires: UNION tableA tableB ON columnName' };
+  }
+
+  const beforeOn = query.substring(0, onIndex).trim();
+  const parts = beforeOn.split(/\s+/);
   
   if (parts.length < 3) {
-    return { error: 'UNION requires two table names' };
+    return { error: 'UNION requires: UNION tableA tableB ON columnName' };
   }
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
+  const columnName = query.substring(onIndex + 2).trim();
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
   }
 
+  const tableASchema = db.tables[tableA].schema.columns;
+  const tableBSchema = db.tables[tableB].schema.columns;
+  
+  if (!tableASchema[columnName]) {
+    return { error: `Column "${columnName}" does not exist in table "${tableA}"` };
+  }
+  
+  if (!tableBSchema[columnName]) {
+    return { error: `Column "${columnName}" does not exist in table "${tableB}"` };
+  }
+
   const rowsA = getTableRows(tableA);
   const rowsB = getTableRows(tableB);
 
-  const union = [];
-  const seen = new Set();
-
+  const values = new Set();
+  
+  // Extract column values from tableA, ignoring null/undefined
   for (const record of rowsA) {
-    const key = JSON.stringify(record);
-    if (!seen.has(key)) {
-      seen.add(key);
-      union.push(record);
+    const value = record[columnName];
+    if (value !== null && value !== undefined) {
+      values.add(value);
     }
   }
-
+  
+  // Extract column values from tableB, ignoring null/undefined
   for (const record of rowsB) {
-    const key = JSON.stringify(record);
-    if (!seen.has(key)) {
-      seen.add(key);
-      union.push(record);
+    const value = record[columnName];
+    if (value !== null && value !== undefined) {
+      values.add(value);
     }
   }
 
-  return { data: union, type: 'set' };
+  return { data: Array.from(values), type: 'set' };
 }
 
 function executeIntersect(query, db) {
-  const parts = query.trim().split(/\s+/);
+  const upper = query.toUpperCase();
+  const onIndex = upper.indexOf('ON');
+  
+  if (onIndex === -1) {
+    return { error: 'INTERSECT requires: INTERSECT tableA tableB ON columnName' };
+  }
+
+  const beforeOn = query.substring(0, onIndex).trim();
+  const parts = beforeOn.split(/\s+/);
   
   if (parts.length < 3) {
-    return { error: 'INTERSECT requires two table names' };
+    return { error: 'INTERSECT requires: INTERSECT tableA tableB ON columnName' };
   }
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
+  const columnName = query.substring(onIndex + 2).trim();
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
   }
 
+  const tableASchema = db.tables[tableA].schema.columns;
+  const tableBSchema = db.tables[tableB].schema.columns;
+  
+  if (!tableASchema[columnName]) {
+    return { error: `Column "${columnName}" does not exist in table "${tableA}"` };
+  }
+  
+  if (!tableBSchema[columnName]) {
+    return { error: `Column "${columnName}" does not exist in table "${tableB}"` };
+  }
+
   const rowsA = getTableRows(tableA);
   const rowsB = getTableRows(tableB);
 
-  const intersection = [];
-  const seen = new Set();
-
-  const setB = new Set(rowsB.map(r => JSON.stringify(r)));
-
+  const valuesA = new Set();
+  const valuesB = new Set();
+  
+  // Extract column values from tableA, ignoring null/undefined
   for (const record of rowsA) {
-    const key = JSON.stringify(record);
-    if (setB.has(key) && !seen.has(key)) {
-      seen.add(key);
-      intersection.push(record);
+    const value = record[columnName];
+    if (value !== null && value !== undefined) {
+      valuesA.add(value);
+    }
+  }
+  
+  // Extract column values from tableB, ignoring null/undefined
+  for (const record of rowsB) {
+    const value = record[columnName];
+    if (value !== null && value !== undefined) {
+      valuesB.add(value);
+    }
+  }
+
+  // Find intersection: values that exist in both sets
+  const intersection = [];
+  for (const value of valuesA) {
+    if (valuesB.has(value)) {
+      intersection.push(value);
     }
   }
 
@@ -242,35 +227,167 @@ function executeIntersect(query, db) {
 }
 
 function executeDiff(query, db) {
-  const parts = query.trim().split(/\s+/);
+  const upper = query.toUpperCase();
+  const onIndex = upper.indexOf('ON');
+  
+  if (onIndex === -1) {
+    return { error: 'DIFF requires: DIFF tableA tableB ON columnName' };
+  }
+
+  const beforeOn = query.substring(0, onIndex).trim();
+  const parts = beforeOn.split(/\s+/);
   
   if (parts.length < 3) {
-    return { error: 'DIFF requires two table names' };
+    return { error: 'DIFF requires: DIFF tableA tableB ON columnName' };
   }
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
+  const columnName = query.substring(onIndex + 2).trim();
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
   }
 
+  const tableASchema = db.tables[tableA].schema.columns;
+  const tableBSchema = db.tables[tableB].schema.columns;
+  
+  if (!tableASchema[columnName]) {
+    return { error: `Column "${columnName}" does not exist in table "${tableA}"` };
+  }
+  
+  if (!tableBSchema[columnName]) {
+    return { error: `Column "${columnName}" does not exist in table "${tableB}"` };
+  }
+
   const rowsA = getTableRows(tableA);
   const rowsB = getTableRows(tableB);
 
-  const diff = [];
-  const seen = new Set();
-  const setB = new Set(rowsB.map(r => JSON.stringify(r)));
-
+  const valuesA = new Set();
+  const valuesB = new Set();
+  
+  // Extract column values from tableA, ignoring null/undefined
   for (const record of rowsA) {
-    const key = JSON.stringify(record);
-    if (!setB.has(key) && !seen.has(key)) {
-      seen.add(key);
-      diff.push(record);
+    const value = record[columnName];
+    if (value !== null && value !== undefined) {
+      valuesA.add(value);
+    }
+  }
+  
+  // Extract column values from tableB, ignoring null/undefined
+  for (const record of rowsB) {
+    const value = record[columnName];
+    if (value !== null && value !== undefined) {
+      valuesB.add(value);
+    }
+  }
+
+  // Find difference: values in A but not in B
+  const diff = [];
+  for (const value of valuesA) {
+    if (!valuesB.has(value)) {
+      diff.push(value);
     }
   }
 
   return { data: diff, type: 'set' };
+}
+
+function executeDelete(query, db) {
+  const upper = query.toUpperCase();
+  
+  // Parse: DELETE FROM tableName [WHERE condition]
+  const fromMatch = query.match(/DELETE\s+FROM\s+(\w+)/i);
+  if (!fromMatch) {
+    return { error: 'Invalid DELETE syntax. Use: DELETE FROM tableName [WHERE condition]' };
+  }
+
+  const tableName = fromMatch[1].toLowerCase();
+  
+  if (!db.tables[tableName]) {
+    return { error: `Table "${tableName}" does not exist` };
+  }
+
+  let rowsToDelete = getTableRows(tableName);
+  let deletedCount = 0;
+
+  // Check for WHERE clause
+  const whereIndex = upper.indexOf('WHERE');
+  if (whereIndex !== -1) {
+    const whereStr = query.substring(whereIndex + 5).trim();
+    const condition = parseWhere(whereStr);
+    
+    if (!condition) {
+      return { error: 'Invalid WHERE clause' };
+    }
+    
+    // Filter rows that match the condition
+    rowsToDelete = rowsToDelete.filter(record => 
+      evaluateCondition(record, condition.field, condition.operator, condition.value)
+    );
+  }
+
+  // Delete each matching row using the existing deleteRow function
+  // This ensures FK constraints and onDelete rules are respected
+  // Collect row IDs first to avoid issues with cascading deletes
+  const rowIdsToDelete = rowsToDelete.map(row => row.id);
+  
+  for (const rowId of rowIdsToDelete) {
+    try {
+      deleteRow(tableName, rowId);
+      deletedCount++;
+    } catch (error) {
+      // If row doesn't exist (might have been deleted by cascade), skip it
+      if (error.message.includes('does not exist')) {
+        continue;
+      }
+      // If deletion fails due to FK constraints, return error
+      return { error: error.message };
+    }
+  }
+
+  return { message: `${deletedCount} row(s) deleted`, type: 'action' };
+}
+
+function executeDrop(query, db) {
+  const upper = query.toUpperCase().trim();
+  
+  // DROP DATABASE
+  if (upper === 'DROP DATABASE') {
+    try {
+      dropDatabase();
+      return { message: 'Database dropped successfully', type: 'action' };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  // DROP TABLE tableName
+  const dropTableMatch = query.match(/DROP\s+TABLE\s+(\w+)/i);
+  if (dropTableMatch) {
+    const tableName = dropTableMatch[1].toLowerCase();
+    try {
+      dropTable(tableName);
+      return { message: `Table "${tableName}" dropped successfully`, type: 'action' };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  // DROP COLUMN columnName FROM tableName
+  const dropColumnMatch = query.match(/DROP\s+COLUMN\s+(\w+)\s+FROM\s+(\w+)/i);
+  if (dropColumnMatch) {
+    const columnName = dropColumnMatch[1];
+    const tableName = dropColumnMatch[2].toLowerCase();
+    try {
+      dropColumn(tableName, columnName);
+      return { message: `Column "${columnName}" dropped from table "${tableName}" successfully`, type: 'action' };
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  return { error: 'Invalid DROP syntax. Use: DROP TABLE tableName, DROP COLUMN columnName FROM tableName, or DROP DATABASE' };
 }
 
 export function executeQuery(query) {
@@ -287,10 +404,6 @@ export function executeQuery(query) {
       return executeSelect(trimmed, db);
     }
 
-    if (upper.startsWith('JOIN')) {
-      return executeJoin(trimmed, db);
-    }
-
     if (upper.startsWith('UNION')) {
       return executeUnion(trimmed, db);
     }
@@ -303,6 +416,14 @@ export function executeQuery(query) {
       return executeDiff(trimmed, db);
     }
 
+    if (upper.startsWith('DELETE')) {
+      return executeDelete(trimmed, db);
+    }
+
+    if (upper.startsWith('DROP')) {
+      return executeDrop(trimmed, db);
+    }
+
     if (upper === 'SHOW TABLES') {
       const tables = Object.keys(db.tables).map(name => {
         const table = db.tables[name];
@@ -312,7 +433,7 @@ export function executeQuery(query) {
       return { data: tables, type: 'tables' };
     }
 
-    return { error: 'Invalid query syntax. Supported: SELECT, JOIN, UNION, INTERSECT, DIFF, SHOW TABLES' };
+    return { error: 'Invalid query syntax. Supported: SELECT, UNION, INTERSECT, DIFF, DELETE, DROP, SHOW TABLES' };
   } catch (error) {
     return { error: `Query error: ${error.message}` };
   }
