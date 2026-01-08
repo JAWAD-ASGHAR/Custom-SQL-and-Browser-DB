@@ -24,6 +24,12 @@ export default function CreateTableModal({
       return;
     }
     
+    // Check for spaces
+    if (newColumnName.includes(' ')) {
+      await showAlert("Column names cannot contain spaces");
+      return;
+    }
+    
     const normalizedNewName = newColumnName.trim().toLowerCase();
     
     if (normalizedNewName === "id") {
@@ -69,10 +75,17 @@ export default function CreateTableModal({
             <input
               type="text"
               value={newTableName}
-              onChange={(e) => setNewTableName(e.target.value)}
+              onChange={(e) => {
+                // Remove spaces from table name
+                const value = e.target.value.replace(/\s/g, '');
+                setNewTableName(value);
+              }}
               className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
               placeholder="e.g., products"
             />
+            <p className="text-xs text-[#8b8b8b] mt-1">
+              Spaces are not allowed in table names
+            </p>
           </div>
 
           <div>
@@ -103,7 +116,11 @@ export default function CreateTableModal({
               <input
                 type="text"
                 value={newColumnName}
-                onChange={(e) => setNewColumnName(e.target.value)}
+                onChange={(e) => {
+                  // Remove spaces from column name
+                  const value = e.target.value.replace(/\s/g, '');
+                  setNewColumnName(value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleAddInitialColumn();

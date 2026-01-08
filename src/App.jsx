@@ -129,6 +129,12 @@ function App() {
       return;
     }
 
+    // Check for spaces in table name
+    if (newTableName.includes(' ')) {
+      await showAlert("Table names cannot contain spaces");
+      return;
+    }
+
     const tableName = newTableName.trim().toLowerCase();
     const currentDb = loadDB();
     
@@ -228,6 +234,12 @@ function App() {
       return;
     }
 
+    // Check for spaces in column name (if not a foreign key)
+    if (!columnIsForeignKey && newColumnName.includes(' ')) {
+      await showAlert("Column names cannot contain spaces");
+      return;
+    }
+
     try {
       const table = getTable(relationFromTable);
       if (!table) {
@@ -293,6 +305,12 @@ function App() {
   const handleCreateRelation = async () => {
     if (!relationFromTable || !relationToTable) {
       await showAlert("Please select both tables");
+      return;
+    }
+
+    // Check for spaces in column name if manually entered
+    if (relationFromColumn && relationFromColumn.includes(' ')) {
+      await showAlert("Column names cannot contain spaces");
       return;
     }
 
@@ -583,7 +601,7 @@ function App() {
     { name: "SELECT: Query table data", query: "SELECT * FROM users" },
     { name: "UNION: Combine column values", query: "UNION customers admins ON userId" },
     { name: "INTERSECT: Find common values", query: "INTERSECT cart_items order_items ON productId" },
-    { name: "DIFF: Find unique values", query: "DIFF customers admins ON userId" },
+    { name: "DIFF: Find unique values", query: "DIFF cart_items order_items ON productId" },
     { name: "DELETE: Remove rows", query: "DELETE FROM users WHERE email = \"test@example.com\"" },
     { name: "DROP: Remove table", query: "DROP TABLE users" },
     { name: "SHOW TABLES: List all tables", query: "SHOW TABLES" },

@@ -31,11 +31,18 @@ export default function AddColumnModal({
             <input
               type="text"
               value={newColumnName}
-              onChange={(e) => setNewColumnName(e.target.value)}
+              onChange={(e) => {
+                // Remove spaces from column name
+                const value = e.target.value.replace(/\s/g, '');
+                setNewColumnName(value);
+              }}
               className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
               placeholder="e.g., email, age, etc."
               disabled={columnIsForeignKey}
             />
+            <p className="text-xs text-[#8b8b8b] mt-1">
+              Spaces are not allowed in column names
+            </p>
             {columnIsForeignKey && (
               <p className="text-xs text-gray-500 mt-1">
                 Column will be named: <strong>{referencedTable}_id</strong>

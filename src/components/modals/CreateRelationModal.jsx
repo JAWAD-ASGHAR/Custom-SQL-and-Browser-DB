@@ -52,10 +52,17 @@ export default function CreateRelationModal({
               <input
                 type="text"
                 value={relationFromColumn}
-                onChange={(e) => setRelationFromColumn(e.target.value)}
+                onChange={(e) => {
+                  // Remove spaces from column name
+                  const value = e.target.value.replace(/\s/g, '');
+                  setRelationFromColumn(value);
+                }}
                 placeholder={`Will be: ${relationToTable || "tablename"}_id`}
                 className="w-full p-2.5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-md text-white placeholder-[#6b6b6b] focus:outline-none focus:ring-2 focus:ring-[#3b82f6]"
               />
+            <p className="text-xs text-[#8b8b8b] mt-1">
+              Spaces are not allowed in column names
+            </p>
             </div>
           )}
 
