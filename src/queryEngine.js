@@ -103,7 +103,8 @@ function executeSelect(query, db) {
 
 function executeUnion(query, db) {
   const upper = query.toUpperCase();
-  const onIndex = upper.indexOf('ON');
+  // Search for " ON " with spaces to avoid matching "ON" inside "UNION"
+  const onIndex = upper.indexOf(' ON ');
   
   if (onIndex === -1) {
     return { error: 'UNION requires: UNION tableA tableB ON columnName' };
@@ -118,7 +119,7 @@ function executeUnion(query, db) {
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
-  const columnName = query.substring(onIndex + 2).trim();
+  const columnName = query.substring(onIndex + 4).trim(); // +4 for " ON "
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
@@ -161,7 +162,8 @@ function executeUnion(query, db) {
 
 function executeIntersect(query, db) {
   const upper = query.toUpperCase();
-  const onIndex = upper.indexOf('ON');
+  // Search for " ON " with spaces to avoid matching "ON" inside words
+  const onIndex = upper.indexOf(' ON ');
   
   if (onIndex === -1) {
     return { error: 'INTERSECT requires: INTERSECT tableA tableB ON columnName' };
@@ -176,7 +178,7 @@ function executeIntersect(query, db) {
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
-  const columnName = query.substring(onIndex + 2).trim();
+  const columnName = query.substring(onIndex + 4).trim(); // +4 for " ON "
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
@@ -228,7 +230,8 @@ function executeIntersect(query, db) {
 
 function executeDiff(query, db) {
   const upper = query.toUpperCase();
-  const onIndex = upper.indexOf('ON');
+  // Search for " ON " with spaces to avoid matching "ON" inside words
+  const onIndex = upper.indexOf(' ON ');
   
   if (onIndex === -1) {
     return { error: 'DIFF requires: DIFF tableA tableB ON columnName' };
@@ -243,7 +246,7 @@ function executeDiff(query, db) {
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
-  const columnName = query.substring(onIndex + 2).trim();
+  const columnName = query.substring(onIndex + 4).trim(); // +4 for " ON "
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };

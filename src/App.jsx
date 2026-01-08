@@ -587,6 +587,7 @@ function App() {
     { name: "DELETE: Remove rows", query: "DELETE FROM users WHERE email = \"test@example.com\"" },
     { name: "DROP: Remove table", query: "DROP TABLE users" },
     { name: "SHOW TABLES: List all tables", query: "SHOW TABLES" },
+    { name: "DROP DATABASE: Clear all tables", query: "DROP DATABASE" },
   ];
 
   return (
