@@ -9,7 +9,6 @@ import {
   insertRow,
   updateRow,
   deleteRow,
-  exportDatabase,
   importDatabase,
 } from "./database";
 import { executeQuery } from "./queryEngine";

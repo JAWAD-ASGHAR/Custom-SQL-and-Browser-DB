@@ -59,7 +59,7 @@ export default function AlertModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] p-4"
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4"
       onClick={handleBackdropClick}
     >
       <div
