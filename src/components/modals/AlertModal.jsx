@@ -4,8 +4,8 @@ export default function AlertModal({
   show,
   title,
   message,
-  type = "alert", // "alert" or "confirm"
-  variant = "info", // "info", "success", "error", "warning"
+  type = "alert", 
+  variant = "info", 
   onConfirm,
   onCancel,
   confirmText = "OK",

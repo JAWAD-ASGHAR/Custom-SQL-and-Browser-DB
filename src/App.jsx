@@ -59,7 +59,6 @@ function App() {
   const [confirmState, setConfirmState] = useState({ show: false, message: "", title: "", onConfirm: null, onCancel: null });
   const fileInputRef = useRef(null);
 
-  // Helper function to show alert
   const showAlert = (message, title = "Alert", variant = "info") => {
     return new Promise((resolve) => {
       setAlertState({
@@ -77,7 +76,6 @@ function App() {
     });
   };
 
-  // Helper function to show confirm
   const showConfirm = (message, title = "Confirm") => {
     return new Promise((resolve) => {
       setConfirmState({
@@ -128,7 +126,6 @@ function App() {
       return;
     }
 
-    // Check for spaces in table name
     if (newTableName.includes(' ')) {
       await showAlert("Table names cannot contain spaces");
       return;
@@ -181,7 +178,6 @@ function App() {
         });
       }
 
-      // Validate that at least one column exists (besides the automatic 'id' column)
       const columnKeys = Object.keys(columns);
       if (columnKeys.length === 0) {
         await showAlert("Please add at least one column before creating the table.\n\nUse the 'Initial Columns' section to add columns with their data types.");
@@ -233,7 +229,6 @@ function App() {
       return;
     }
 
-    // Check for spaces in column name (if not a foreign key)
     if (!columnIsForeignKey && newColumnName.includes(' ')) {
       await showAlert("Column names cannot contain spaces");
       return;
@@ -306,8 +301,7 @@ function App() {
       await showAlert("Please select both tables");
       return;
     }
-
-    // Check for spaces in column name if manually entered
+    
     if (relationFromColumn && relationFromColumn.includes(' ')) {
       await showAlert("Column names cannot contain spaces");
       return;

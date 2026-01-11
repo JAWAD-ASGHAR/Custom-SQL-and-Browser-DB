@@ -24,7 +24,6 @@ export default function CreateTableModal({
       return;
     }
     
-    // Check for spaces
     if (newColumnName.includes(' ')) {
       await showAlert("Column names cannot contain spaces");
       return;
@@ -76,7 +75,6 @@ export default function CreateTableModal({
               type="text"
               value={newTableName}
               onChange={(e) => {
-                // Remove spaces from table name
                 const value = e.target.value.replace(/\s/g, '');
                 setNewTableName(value);
               }}
@@ -117,7 +115,6 @@ export default function CreateTableModal({
                 type="text"
                 value={newColumnName}
                 onChange={(e) => {
-                  // Remove spaces from column name
                   const value = e.target.value.replace(/\s/g, '');
                   setNewColumnName(value);
                 }}

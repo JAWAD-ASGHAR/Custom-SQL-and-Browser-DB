@@ -281,7 +281,6 @@ export function dropTable(tableName) {
     throw new Error(`Table "${tableName}" does not exist`);
   }
 
-  // Check if any other table references this table via foreign keys
   for (const otherTableName in db.tables) {
     if (otherTableName === tableName) continue;
     
@@ -312,20 +311,16 @@ export function dropColumn(tableName, columnName) {
     throw new Error(`Column "${columnName}" does not exist in table "${tableName}"`);
   }
 
-  // Prevent dropping primary key
   if (columnName === 'id') {
     throw new Error('Cannot drop primary key column "id"');
   }
 
-  // Prevent dropping columns used as foreign keys
   if (table.schema.foreignKeys[columnName]) {
     throw new Error(`Cannot drop column "${columnName}": used as foreign key`);
   }
 
-  // Remove column from schema
   delete table.schema.columns[columnName];
 
-  // Remove column from all existing rows
   for (const rowId in table.rows) {
     delete table.rows[rowId][columnName];
   }

@@ -16,7 +16,6 @@ export default function QueryResults({ result, resultsMenuOpen, setResultsMenuOp
 
     let csvRows;
     if (result.type === 'set') {
-      // For set operations, export as single column
       csvRows = [
         'value',
         ...result.data.map((value) => {

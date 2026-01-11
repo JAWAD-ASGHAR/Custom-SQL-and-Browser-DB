@@ -53,7 +53,6 @@ export default function CreateRelationModal({
                 type="text"
                 value={relationFromColumn}
                 onChange={(e) => {
-                  // Remove spaces from column name
                   const value = e.target.value.replace(/\s/g, '');
                   setRelationFromColumn(value);
                 }}

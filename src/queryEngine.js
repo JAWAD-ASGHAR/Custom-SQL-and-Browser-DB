@@ -103,7 +103,6 @@ function executeSelect(query, db) {
 
 function executeUnion(query, db) {
   const upper = query.toUpperCase();
-  // Search for " ON " with spaces to avoid matching "ON" inside "UNION"
   const onIndex = upper.indexOf(' ON ');
   
   if (onIndex === -1) {
@@ -119,7 +118,7 @@ function executeUnion(query, db) {
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
-  const columnName = query.substring(onIndex + 4).trim(); // +4 for " ON "
+  const columnName = query.substring(onIndex + 4).trim(); 
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
@@ -141,7 +140,6 @@ function executeUnion(query, db) {
 
   const values = new Set();
   
-  // Extract column values from tableA, ignoring null/undefined
   for (const record of rowsA) {
     const value = record[columnName];
     if (value !== null && value !== undefined) {
@@ -149,7 +147,6 @@ function executeUnion(query, db) {
     }
   }
   
-  // Extract column values from tableB, ignoring null/undefined
   for (const record of rowsB) {
     const value = record[columnName];
     if (value !== null && value !== undefined) {
@@ -162,7 +159,6 @@ function executeUnion(query, db) {
 
 function executeIntersect(query, db) {
   const upper = query.toUpperCase();
-  // Search for " ON " with spaces to avoid matching "ON" inside words
   const onIndex = upper.indexOf(' ON ');
   
   if (onIndex === -1) {
@@ -178,7 +174,7 @@ function executeIntersect(query, db) {
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
-  const columnName = query.substring(onIndex + 4).trim(); // +4 for " ON "
+  const columnName = query.substring(onIndex + 4).trim(); 
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
@@ -201,7 +197,6 @@ function executeIntersect(query, db) {
   const valuesA = new Set();
   const valuesB = new Set();
   
-  // Extract column values from tableA, ignoring null/undefined
   for (const record of rowsA) {
     const value = record[columnName];
     if (value !== null && value !== undefined) {
@@ -209,7 +204,6 @@ function executeIntersect(query, db) {
     }
   }
   
-  // Extract column values from tableB, ignoring null/undefined
   for (const record of rowsB) {
     const value = record[columnName];
     if (value !== null && value !== undefined) {
@@ -217,7 +211,6 @@ function executeIntersect(query, db) {
     }
   }
 
-  // Find intersection: values that exist in both sets
   const intersection = [];
   for (const value of valuesA) {
     if (valuesB.has(value)) {
@@ -230,7 +223,6 @@ function executeIntersect(query, db) {
 
 function executeDiff(query, db) {
   const upper = query.toUpperCase();
-  // Search for " ON " with spaces to avoid matching "ON" inside words
   const onIndex = upper.indexOf(' ON ');
   
   if (onIndex === -1) {
@@ -246,7 +238,7 @@ function executeDiff(query, db) {
 
   const tableA = parts[1].toLowerCase();
   const tableB = parts[2].toLowerCase();
-  const columnName = query.substring(onIndex + 4).trim(); // +4 for " ON "
+  const columnName = query.substring(onIndex + 4).trim(); 
   
   if (!db.tables[tableA] || !db.tables[tableB]) {
     return { error: `One or both tables do not exist: ${tableA}, ${tableB}` };
@@ -269,7 +261,6 @@ function executeDiff(query, db) {
   const valuesA = new Set();
   const valuesB = new Set();
   
-  // Extract column values from tableA, ignoring null/undefined
   for (const record of rowsA) {
     const value = record[columnName];
     if (value !== null && value !== undefined) {
@@ -277,7 +268,6 @@ function executeDiff(query, db) {
     }
   }
   
-  // Extract column values from tableB, ignoring null/undefined
   for (const record of rowsB) {
     const value = record[columnName];
     if (value !== null && value !== undefined) {
@@ -285,7 +275,6 @@ function executeDiff(query, db) {
     }
   }
 
-  // Find difference: values in A but not in B
   const diff = [];
   for (const value of valuesA) {
     if (!valuesB.has(value)) {
@@ -299,7 +288,6 @@ function executeDiff(query, db) {
 function executeDelete(query, db) {
   const upper = query.toUpperCase();
   
-  // Parse: DELETE FROM tableName [WHERE condition]
   const fromMatch = query.match(/DELETE\s+FROM\s+(\w+)/i);
   if (!fromMatch) {
     return { error: 'Invalid DELETE syntax. Use: DELETE FROM tableName [WHERE condition]' };
@@ -314,7 +302,6 @@ function executeDelete(query, db) {
   let rowsToDelete = getTableRows(tableName);
   let deletedCount = 0;
 
-  // Check for WHERE clause
   const whereIndex = upper.indexOf('WHERE');
   if (whereIndex !== -1) {
     const whereStr = query.substring(whereIndex + 5).trim();
@@ -324,15 +311,11 @@ function executeDelete(query, db) {
       return { error: 'Invalid WHERE clause' };
     }
     
-    // Filter rows that match the condition
     rowsToDelete = rowsToDelete.filter(record => 
       evaluateCondition(record, condition.field, condition.operator, condition.value)
     );
   }
 
-  // Delete each matching row using the existing deleteRow function
-  // This ensures FK constraints and onDelete rules are respected
-  // Collect row IDs first to avoid issues with cascading deletes
   const rowIdsToDelete = rowsToDelete.map(row => row.id);
   
   for (const rowId of rowIdsToDelete) {
@@ -340,11 +323,9 @@ function executeDelete(query, db) {
       deleteRow(tableName, rowId);
       deletedCount++;
     } catch (error) {
-      // If row doesn't exist (might have been deleted by cascade), skip it
       if (error.message.includes('does not exist')) {
         continue;
       }
-      // If deletion fails due to FK constraints, return error
       return { error: error.message };
     }
   }
@@ -355,7 +336,6 @@ function executeDelete(query, db) {
 function executeDrop(query, db) {
   const upper = query.toUpperCase().trim();
   
-  // DROP DATABASE
   if (upper === 'DROP DATABASE') {
     try {
       dropDatabase();
@@ -365,7 +345,6 @@ function executeDrop(query, db) {
     }
   }
 
-  // DROP TABLE tableName
   const dropTableMatch = query.match(/DROP\s+TABLE\s+(\w+)/i);
   if (dropTableMatch) {
     const tableName = dropTableMatch[1].toLowerCase();
@@ -377,7 +356,6 @@ function executeDrop(query, db) {
     }
   }
 
-  // DROP COLUMN columnName FROM tableName
   const dropColumnMatch = query.match(/DROP\s+COLUMN\s+(\w+)\s+FROM\s+(\w+)/i);
   if (dropColumnMatch) {
     const columnName = dropColumnMatch[1];

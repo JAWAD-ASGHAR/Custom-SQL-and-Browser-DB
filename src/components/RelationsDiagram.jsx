@@ -67,10 +67,8 @@ export default function RelationsDiagram({ onNodeClick, selectedTable, db }) {
       return { nodes: [], edges: [] };
     }
 
-    // Calculate layout - arrange tables in a circle with balanced spacing
     const centerX = 600;
     const centerY = 500;
-    // Balanced radius - enough to prevent overlap but not too spread out
     const radius = Math.max(280, tableNames.length * 70);
     const angleStep = (2 * Math.PI) / tableNames.length;
 
@@ -87,7 +85,7 @@ export default function RelationsDiagram({ onNodeClick, selectedTable, db }) {
         };
       });
 
-      const angle = idx * angleStep - Math.PI / 2; // Start from top
+      const angle = idx * angleStep - Math.PI / 2; 
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
 
@@ -100,7 +98,7 @@ export default function RelationsDiagram({ onNodeClick, selectedTable, db }) {
           columns,
         },
         width: 220,
-        height: Math.min(400, 50 + columns.length * 28), // Dynamic height based on columns
+        height: Math.min(400, 50 + columns.length * 28), 
         style: {
           background: selectedTable === tableName ? '#2a2a2a' : '#1e1e1e',
         },
@@ -118,12 +116,10 @@ export default function RelationsDiagram({ onNodeClick, selectedTable, db }) {
         const fk = foreignKeys[fkColumn];
         const [refTable] = fk.references.split('.');
 
-        // Create unique edge ID
         const edgeId = `${tableName}-${fkColumn}-${refTable}`;
         if (edgeSet.has(edgeId)) return;
         edgeSet.add(edgeId);
 
-        // Only create edge if target table exists
         if (tables[refTable]) {
           edges.push({
             id: edgeId,
@@ -164,7 +160,6 @@ export default function RelationsDiagram({ onNodeClick, selectedTable, db }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Update nodes when initialNodes change
   React.useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
